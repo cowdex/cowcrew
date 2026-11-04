@@ -116,6 +116,6 @@ export const api = {
     request<{ ok: boolean }>('POST', `/features/${id}/message`, { agent, text }),
 
   settings: () => request<Settings>('GET', '/settings'),
-  saveSettings: (b: Partial<Pick<Settings, 'budget_usd_week' | 'max_attempts' | 'models'>>) =>
+  saveSettings: (b: Partial<Pick<Settings, 'budget_usd_week' | 'budget_tokens_week' | 'max_attempts' | 'models'>>) =>
     request<Settings>('PUT', '/settings', b),
 };

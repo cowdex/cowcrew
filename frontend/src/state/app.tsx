@@ -165,3 +165,8 @@ function mergeEvents(prev: Event[], next: Event[]): Event[] {
   [...prev, ...next].forEach((e) => map.set(e.id, e));
   return [...map.values()].sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts) || b.id - a.id).slice(0, 20);
 }
+
+/** True when the user is on a Claude subscription: show tokens instead of dollars. */
+export function useTokensMode(): boolean {
+  return useApp().settings?.billing === 'subscription';
+}

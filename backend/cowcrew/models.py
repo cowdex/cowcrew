@@ -87,6 +87,7 @@ class FeatureSummary(BaseModel):
     tasks_total: int
     elapsed_seconds: int
     cost_usd: float
+    tokens: int = 0
     waiting_on_you: bool
     created_at: str
     updated_at: str
@@ -207,6 +208,7 @@ class SpendByAgent(BaseModel):
     agent: AgentKey
     model: str
     cost_usd: float
+    tokens: int = 0
 
 
 class ChecklistItem(BaseModel):
@@ -235,6 +237,7 @@ class AgentCard(BaseModel):
     job: str
     context_pct: float
     spend_usd: float
+    spend_tokens: int = 0
     feature_id: int | None
 
 
@@ -247,6 +250,8 @@ class Kpis(BaseModel):
     ci_failing: int
     spend_7d_usd: float
     budget_usd: float
+    spend_7d_tokens: int = 0
+    budget_tokens: int = 0
 
 
 class BoardRow(BaseModel):
@@ -260,14 +265,18 @@ class ModelSpend(BaseModel):
     model: str
     agents: str
     usd: float
+    tokens: int = 0
     pct: float
 
 
 class Spend(BaseModel):
+    unit: Literal["usd", "tokens"] = "usd"
     total_usd: float
+    total_tokens: int = 0
     wow_pct: float | None
     by_model: list[ModelSpend]
     projected_usd: float
+    projected_tokens: int = 0
     budget_used_pct: float
 
 
@@ -292,6 +301,8 @@ class Overview(BaseModel):
 
 class Settings(BaseModel):
     budget_usd_week: float
+    budget_tokens_week: int = 0
+    billing: Literal["api", "subscription"] = "api"
     max_attempts: int
     models: dict[WorkerAgent, str]
     simulate: bool
@@ -346,6 +357,7 @@ class MessageBody(_Body):
 
 class SettingsUpdate(_Body):
     budget_usd_week: float | None = Field(default=None, ge=0)
+    budget_tokens_week: int | None = Field(default=None, ge=0)
     max_attempts: int | None = Field(default=None, ge=1, le=20)
     models: dict[WorkerAgent, str] | None = None
 

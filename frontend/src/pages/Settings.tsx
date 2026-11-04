@@ -166,17 +166,19 @@ function Projects({ sectionRef }: { sectionRef: RefObject<HTMLElement> }) {
 }
 
 function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: Settings) => void }) {
-  const [budget, setBudget] = useState(String(settings.budget_usd_week));
+  const tk = settings.billing === 'subscription';
+  const storedBudget = tk ? settings.budget_tokens_week ?? 0 : settings.budget_usd_week;
+  const [budget, setBudget] = useState(String(storedBudget));
   const [attempts, setAttempts] = useState(String(settings.max_attempts));
   const [models, setModels] = useState<Record<WorkerAgentKey, string>>(settings.models);
   const [busy, setBusy] = useState(false);
-  const dirty = Number(budget) !== settings.budget_usd_week || Number(attempts) !== settings.max_attempts || WORKER_AGENTS.some((a) => models[a] !== settings.models[a]);
+  const dirty = Number(budget) !== storedBudget || Number(attempts) !== settings.max_attempts || WORKER_AGENTS.some((a) => models[a] !== settings.models[a]);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const s = await api.saveSettings({ budget_usd_week: Number(budget), max_attempts: Number(attempts), models });
+      const s = await api.saveSettings({ ...(tk ? { budget_tokens_week: Number(budget) } : { budget_usd_week: Number(budget) }), max_attempts: Number(attempts), models });
       onSaved(s);
       toast.success('Settings saved.');
     } catch {
@@ -195,9 +197,11 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
         <label className="field">
-          Weekly budget (USD)
-          <input className="input mono" type="number" min={0} step={1} value={budget} onChange={(e) => setBudget(e.target.value)} required />
-          <span style={{ fontWeight: 400, color: '#74717A' }}>Shown against agent spend on the overview.</span>
+          {tk ? 'Weekly budget (tokens)' : 'Weekly budget (USD)'}
+          <input className="input mono" type="number" min={0} step={tk ? 1_000_000 : 1} value={budget} onChange={(e) => setBudget(e.target.value)} required />
+          <span style={{ fontWeight: 400, color: '#74717A' }}>
+            {tk ? 'You’re on a Claude plan: usage is counted in tokens. Runs pause when the week reaches this.' : 'Runs pause when agent spend this week reaches this.'}
+          </span>
         </label>
         <label className="field">
           Max attempts per task
@@ -227,7 +231,7 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
           className="btn"
           disabled={!dirty || busy}
           onClick={() => {
-            setBudget(String(settings.budget_usd_week));
+            setBudget(String(storedBudget));
             setAttempts(String(settings.max_attempts));
             setModels(settings.models);
           }}
@@ -252,6 +256,7 @@ function StatusCard({ settings }: { settings: Settings | null }) {
     ? [
         ['Agents', !settings.simulate, 'Real agents', 'Simulation mode'],
         ['Anthropic credentials', settings.has_credentials, 'Found', 'Missing'],
+        ['Billing', true, settings.billing === 'subscription' ? 'Claude plan · tokens' : 'API · dollars', ''],
         ['GitHub CLI (gh)', settings.gh_available, 'Signed in', 'Not available'],
         ['Live updates', connected, 'Connected', 'Reconnecting'],
       ]

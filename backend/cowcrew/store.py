@@ -129,7 +129,9 @@ def summary_of(db: Database, row: sqlite3.Row) -> FeatureSummary:
         pr_number=row["pr_number"], pr_url=row["pr_url"],
         tasks_done=sum(t.status == "committed" for t in tasks), tasks_total=len(tasks),
         elapsed_seconds=max(0, int((end - parse_iso(row["created_at"])).total_seconds())),
-        cost_usd=round(row["cost_usd"], 4), waiting_on_you=status in GATE_STATES,
+        cost_usd=round(row["cost_usd"], 4),
+        tokens=int(row["tokens_in"] or 0) + int(row["tokens_out"] or 0),
+        waiting_on_you=status in GATE_STATES,
         created_at=row["created_at"], updated_at=row["updated_at"],
     )
 
@@ -166,12 +168,15 @@ def ci_runs_of(db: Database, feature_id: int) -> list[CIRun]:
 def _spend_by_agent(db: Database, feature_id: int) -> list[SpendByAgent]:
     rows = db.all(
         "SELECT agent, json_extract(data, '$.model') AS model, "
-        "SUM(json_extract(data, '$.cost_usd')) AS usd FROM events "
+        "SUM(json_extract(data, '$.cost_usd')) AS usd, "
+        "SUM(COALESCE(json_extract(data, '$.input_tokens'), 0)"
+        " + COALESCE(json_extract(data, '$.output_tokens'), 0)) AS tokens FROM events "
         "WHERE feature_id = ? AND kind = 'cost' GROUP BY agent, model ORDER BY usd DESC",
         (feature_id,),
     )
     return [SpendByAgent(agent=r["agent"], model=r["model"] or "unknown",
-                         cost_usd=round(r["usd"] or 0.0, 4)) for r in rows]
+                         cost_usd=round(r["usd"] or 0.0, 4), tokens=int(r["tokens"] or 0))
+            for r in rows]
 
 
 def _checklist(

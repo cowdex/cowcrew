@@ -203,13 +203,16 @@ worktree, the commits and the squash merge. It never pushes and never opens a re
 | `ANTHROPIC_API_KEY`          | —               | API key for the agents (or log in to Claude Code)       |
 | `COWCREW_HOME`               | `~/.cowcrew`    | Where `cowcrew.db` lives                                |
 | `COWCREW_SIMULATE`           | auto            | `1` forces simulate mode                                |
+| `COWCREW_BILLING`            | auto            | `subscription` shows tokens, `api` shows dollars        |
 | `COWCREW_PORT`               | `8787`          | Port for `cowcrew serve`                                |
 | `COWCREW_SIM_SPEED`          | `1`             | Multiplier for simulated delays (`0` = instant)         |
 | `COWCREW_CI_POLL_SECONDS`    | `20`            | How often CI is polled                                  |
 | `COWCREW_CI_TIMEOUT_SECONDS` | `2700`          | When a CI wait gives up and pauses                      |
 | `COWCREW_FRONTEND_DIST`      | `frontend/dist` | Built UI to serve                                       |
 
-Budget, `max_attempts` and the model for each agent are set on the Settings page.
+Budget, `max_attempts` and the model for each agent are set on the Settings page. On a Claude
+subscription, CowCrew shows usage and the weekly budget in **tokens**. With an API key, it shows
+**dollars**.
 </details>
 
 <details>

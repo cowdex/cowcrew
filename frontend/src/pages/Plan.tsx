@@ -6,7 +6,7 @@ import { Chip, Dot, ErrorState, FeatureHeader, Loading, NumBox } from '../compon
 import { clock, duration, pad2, plural } from '../lib/format';
 import { numColor } from '../lib/status';
 import { toast } from '../lib/toast';
-import { useApp } from '../state/app';
+import { useApp, useTokensMode } from '../state/app';
 import { useFeatureEvents } from '../state/hooks';
 import { splitSpec, useAction, useFeaturePage } from './shared';
 
@@ -18,6 +18,7 @@ export default function PlanPage() {
 }
 
 function PlanView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureDetail) => void }) {
+  const tk = useTokensMode();
   const f = d.feature;
   const { settings } = useApp();
   const model = settings?.models.product_architect ?? 'fable';
@@ -96,9 +97,9 @@ function PlanView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureDe
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span className="big">
-                    ${Math.round(f.estimate.cost_min)}–{Math.round(f.estimate.cost_max)}
+                    {tk ? `~${f.estimate.files}` : `$${Math.round(f.estimate.cost_min)}–${Math.round(f.estimate.cost_max)}`}
                   </span>
-                  <span style={{ fontSize: 13, color: '#74717A' }}>agent cost</span>
+                  <span style={{ fontSize: 13, color: '#74717A' }}>{tk ? 'files likely touched' : 'agent cost'}</span>
                 </div>
               </div>
               <div style={{ height: 6, background: 'linear-gradient(90deg, #FCA326, #A989F5)' }} aria-hidden="true" />

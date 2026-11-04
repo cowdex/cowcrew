@@ -70,6 +70,15 @@ def load_system_prompt(agent: str) -> str:
     return (PROMPTS_DIR / f"{agent}.md").read_text(encoding="utf-8")
 
 
+def _compact(n: int) -> str:
+    """1234 → 1.2k, 4_200_000 → 4.2M."""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}k"
+    return str(n)
+
+
 def describe_tool(name: str, tool_input: dict[str, Any], cwd: Path) -> str:
     """Compact one-liner for a tool call: 'Edit src/x.py', 'Bash: pytest -q'."""
 
@@ -161,8 +170,10 @@ class RunRecorder:
         )
         self._emit(
             "cost",
-            f"{AGENT_SHORT.get(self.job.agent, self.job.agent)} run: ${cost_usd:.2f} · "
-            f"{num_turns} turns",
+            f"{AGENT_SHORT.get(self.job.agent, self.job.agent)} run: "
+            + (f"{_compact(tokens_in + tokens_out)} tokens"
+               if self.runner.settings.billing == "subscription" else f"${cost_usd:.2f}")
+            + f" · {num_turns} turns",
             {
                 "cost_usd": round(cost_usd, 4), "model": self.model,
                 "input_tokens": tokens_in, "output_tokens": tokens_out,

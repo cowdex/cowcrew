@@ -310,3 +310,24 @@ async def test_send_back_queues_rollup_and_rebuilds(real_mode: Callable[..., App
     assert tasks[-1].title.startswith("[Send-back]")
     assert tasks[-1].acceptance_criteria == ["Rename the endpoint to /v1/limits"]
     assert [j.phase for j in state.runner.jobs][-4:] == ["implement", "test", "accept", "review"]
+
+
+async def test_subscription_budget_counts_tokens(make_state: Callable[..., AppState],
+                                                 git_repo: Path) -> None:
+    state = make_state(script(), simulate=False, billing="subscription")
+    state.db.set_setting("budget_usd_week", 1.0)  # ignored on a subscription
+    state.db.set_setting("budget_tokens_week", 1_000_000)
+    state.bus.emit(None, "tester", "cost", "old run",
+                   {"cost_usd": 5.0, "model": "sonnet", "input_tokens": 900, "output_tokens": 50})
+    project = add_project(state, git_repo)
+    fid = state.orchestrator.create_feature(project, "Feature", "spec")
+    assert await settle(state, fid) == "awaiting_plan_approval"  # $5 > $1 doesn't matter
+    state.bus.emit(None, "tester", "cost", "big run",
+                   {"cost_usd": 0.0, "model": "sonnet", "input_tokens": 2_000_000})
+    jobs_before = len(state.runner.jobs)
+    fid2 = state.orchestrator.create_feature(project, "Second", "spec")
+    assert await settle(state, fid2) == "paused"
+    assert len(state.runner.jobs) == jobs_before
+    error = state.db.scalar("SELECT message FROM events WHERE feature_id = ? AND kind = 'error' "
+                            "ORDER BY id DESC LIMIT 1", (fid2,))
+    assert "tokens" in error

@@ -261,3 +261,15 @@ endpoint above changed.
   - Requests with a `Host` other than loopback get 400. `cowcrew serve --host X` allows X.
 - **Extra environment variables:** `COWCREW_SIM_SPEED`, `COWCREW_CI_POLL_SECONDS`,
   `COWCREW_CI_TIMEOUT_SECONDS`, `COWCREW_FRONTEND_DIST`, `COWCREW_ALLOWED_HOSTS`.
+
+## Billing notes
+
+- `Settings.billing` is `"subscription"` (Claude plan login, usage counted in tokens) or `"api"`
+  (API key or cloud provider, billed in dollars). `COWCREW_BILLING` overrides the detection.
+- Token figures are input (including cache reads and writes) plus output tokens, summed from
+  `cost` events. Added fields: `FeatureSummary.tokens`, `SpendByAgent.tokens`,
+  `AgentCard.spend_tokens`, `Kpis.spend_7d_tokens` / `budget_tokens`, `Spend.unit`,
+  `Spend.total_tokens`, `Spend.projected_tokens`, `ModelSpend.tokens`,
+  `Settings.budget_tokens_week`.
+- The weekly budget pauses runs in the unit that matches billing. Projections only extrapolate
+  once there are two days of history.

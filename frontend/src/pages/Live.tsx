@@ -6,7 +6,7 @@ import { Chip, Dot, ErrorState, FeatureHeader, Loading, MetaLine, Modal } from '
 import { clock, compactNum, duration, minus, money, pad3, plural } from '../lib/format';
 import { AGENT_NAME, AGENT_SHORT, featureChip } from '../lib/status';
 import { toast } from '../lib/toast';
-import { useApp } from '../state/app';
+import { useApp, useTokensMode } from '../state/app';
 import { useFeatureEvents } from '../state/hooks';
 import { useAction, useFeaturePage } from './shared';
 
@@ -48,6 +48,7 @@ function verdictOf(e: Event): string {
 function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; events: Event[]; eventsLoading: boolean; setDetail: (d: FeatureDetail) => void }) {
   const f = d.feature;
   const { settings } = useApp();
+  const tk = useTokensMode();
   const maxAttempts = settings?.max_attempts ?? 4;
   const models = settings?.models;
   const [sel, setSel] = useState<NodeKey | null>(null);
@@ -61,7 +62,9 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
   const paused = f.status === 'paused' || f.paused;
   const terminal = ['merged', 'stopped', 'failed'].includes(f.status);
 
-  const spendOf = (a: AgentKey) => d.spend_by_agent.filter((s) => s.agent === a).reduce((x, s) => x + s.cost_usd, 0);
+  const spendOf = (a: AgentKey) => d.spend_by_agent.filter((s) => s.agent === a).reduce((x, s) => x + (tk ? s.tokens ?? 0 : s.cost_usd), 0);
+  const spendLabel = tk ? 'Tokens' : 'Spend';
+  const fmtSpend = (n: number) => (tk ? compactNum(n) : money(n));
   const modelOf = (a: AgentKey) =>
     d.spend_by_agent.find((s) => s.agent === a)?.model ?? (models && a in models ? models[a as keyof typeof models] : a === 'human' ? 'human' : '—');
   const byAgent = (a: AgentKey) => events.filter((e) => e.agent === a);
@@ -110,43 +113,43 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
         key: 'pa1', name: 'Product Architect', model: modelOf('product_architect'), state: pa1,
         sub: pa1 === 'done' ? 'grooming · done' : pa1 === 'wait' ? 'waiting on you' : pa1 === 'run' ? 'grooming' : 'plan',
         text: pa1 === 'done' ? `Turned your spec into ${plural(planTasks, 'task')}${f.adr ? ` and an ADR (${f.adr.title})` : ''}. You approved the plan.` : text('product_architect', 'Planning the feature.'),
-        metrics: [['Tasks', String(planTasks)], ['ADRs', f.adr ? '1' : '0'], ['Questions', String(d.questions.length)], ['Spend', money(spendOf('product_architect'))]],
+        metrics: [['Tasks', String(planTasks)], ['ADRs', f.adr ? '1' : '0'], ['Questions', String(d.questions.length)], [spendLabel, fmtSpend(spendOf('product_architect'))]],
       },
       swe: {
         key: 'swe', name: 'Software Engineer', model: modelOf('software_engineer'), state: pauseIt(swe),
         sub: swe === 'run' && current ? `task ${pad3(current.seq)} · attempt ${Math.max(1, current.attempts)}` : swe === 'done' ? `${f.tasks_done} tasks committed` : 'build · later',
         text: text('software_engineer', 'Writes code and tests for one task at a time. Never commits on its own.'),
-        metrics: [['Attempt', current ? `${Math.max(1, current.attempts)} / ${maxAttempts}` : '—'], ['Files', f.diff_stats ? String(f.diff_stats.files) : '—'], ['Tool calls', String(toolCount('software_engineer'))], ['Spend', money(spendOf('software_engineer'))]],
+        metrics: [['Attempt', current ? `${Math.max(1, current.attempts)} / ${maxAttempts}` : '—'], ['Files', f.diff_stats ? String(f.diff_stats.files) : '—'], ['Tool calls', String(toolCount('software_engineer'))], [spendLabel, fmtSpend(spendOf('software_engineer'))]],
       },
       tst: {
         key: 'tst', name: 'Tester', model: modelOf('tester'), state: pauseIt(tst),
         sub: tst === 'fail' ? 'last check · fail' : tst === 'run' ? `checking task ${current ? pad3(current.seq) : ''}` : tst === 'done' ? 'all checks passed' : current ? 'next · re-check' : 'build · later',
         text: text('tester', 'Runs the suite plus adversarial checks and returns PASS or FAIL.'),
-        metrics: [['Last verdict', lastVerdict], ['Checks', String(testerVerdicts.length)], ['Fails', String(testerVerdicts.filter((e) => verdictOf(e) === 'FAIL').length)], ['Spend', money(spendOf('tester'))]],
+        metrics: [['Last verdict', lastVerdict], ['Checks', String(testerVerdicts.length)], ['Fails', String(testerVerdicts.filter((e) => verdictOf(e) === 'FAIL').length)], [spendLabel, fmtSpend(spendOf('tester'))]],
       },
       pa2: {
         key: 'pa2', name: 'Product Architect', model: modelOf('product_architect'), state: pauseIt(pa2),
         sub: pa2 === 'run' ? 'acceptance · checking' : pa2 === 'done' ? 'acceptance · accepted' : pa2 === 'fail' ? 'acceptance · rejected' : 'acceptance · later',
         text: acc?.summary ?? 'Will check the finished feature from a real user’s point of view.',
-        metrics: [['Verdict', acc ? (acc.verdict === 'ACCEPT' ? 'Accept' : 'Reject') : '—'], ['Criteria', acc ? `${acc.criteria.filter((c) => c.met).length}/${acc.criteria.length}` : '—'], ['Issues', acc ? String(acc.issues.length) : '—'], ['Spend', money(spendOf('product_architect'))]],
+        metrics: [['Verdict', acc ? (acc.verdict === 'ACCEPT' ? 'Accept' : 'Reject') : '—'], ['Criteria', acc ? `${acc.criteria.filter((c) => c.met).length}/${acc.criteria.length}` : '—'], ['Issues', acc ? String(acc.issues.length) : '—'], [spendLabel, fmtSpend(spendOf('product_architect'))]],
       },
       rev: {
         key: 'rev', name: 'PR Reviewer', model: modelOf('pr_reviewer'), state: pauseIt(rev),
         sub: rev === 'run' ? 'reviewing the diff' : d.findings.length ? `${plural(d.findings.length, 'finding')}` : 'review · later',
         text: text('pr_reviewer', 'Will read the full diff and tag every finding as Blocker or Nit.'),
-        metrics: [['Findings', String(d.findings.length)], ['Open blockers', String(openBlockers)], ['Rounds', String(rounds || '—')], ['Spend', money(spendOf('pr_reviewer'))]],
+        metrics: [['Findings', String(d.findings.length)], ['Open blockers', String(openBlockers)], ['Rounds', String(rounds || '—')], [spendLabel, fmtSpend(spendOf('pr_reviewer'))]],
       },
       onc: {
         key: 'onc', name: 'On-Call Engineer', model: modelOf('oncall_engineer'), state: pauseIt(onc),
         sub: st[3] === 'fail' ? 'CI red · diagnosing' : st[3] === 'run' ? 'watching CI' : st[3] === 'done' ? 'CI green' : 'CI · later',
         text: text('oncall_engineer', 'Will watch GitHub Actions after the push and fix anything red.'),
-        metrics: [['CI runs', String(d.ci_runs.length)], ['Failing', lastRun ? String(lastRun.jobs.filter((j) => j.conclusion === 'failure').length) : '—'], ['Last run', lastRun ? `#${lastRun.run_id}` : '—'], ['Spend', money(spendOf('oncall_engineer'))]],
+        metrics: [['CI runs', String(d.ci_runs.length)], ['Failing', lastRun ? String(lastRun.jobs.filter((j) => j.conclusion === 'failure').length) : '—'], ['Last run', lastRun ? `#${lastRun.run_id}` : '—'], [spendLabel, fmtSpend(spendOf('oncall_engineer'))]],
       },
       you: {
         key: 'you', name: 'You', model: 'human', state: you,
         sub: you === 'wait' ? 'gate 2 · waiting on you' : you === 'done' ? 'merged' : 'gate 2 · merge',
         text: you === 'wait' ? 'Everything passed. Review the summary and decide to merge.' : you === 'done' ? `Merged${f.merged_commit ? ` as ${f.merged_commit}` : ''}.` : 'You review the summary and decide to merge.',
-        metrics: [['Gate', '2'], ['Status', you === 'wait' ? 'Ready' : you === 'done' ? 'Merged' : '—'], ['Run cost', money(f.cost_usd)], ['Elapsed', duration(f.elapsed_seconds)]],
+        metrics: [['Gate', '2'], ['Status', you === 'wait' ? 'Ready' : you === 'done' ? 'Merged' : '—'], [tk ? 'Run tokens' : 'Run cost', tk ? compactNum((f.tokens_in ?? 0) + (f.tokens_out ?? 0)) : money(f.cost_usd)], ['Elapsed', duration(f.elapsed_seconds)]],
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -608,15 +611,17 @@ function TasksCard({ tasks }: { tasks: Task[] }) {
 
 function SpendCard({ d }: { d: FeatureDetail }) {
   const f = d.feature;
-  const est = f.estimate?.cost_max ?? null;
+  const tk = useTokensMode();
+  const est = tk ? null : f.estimate?.cost_max ?? null;
   const pct = est ? Math.min(100, Math.round((f.cost_usd / est) * 100)) : null;
   return (
     <section aria-labelledby="cost-h" className="card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <h2 id="cost-h" className="label">
-        Spend on this run
+        {tk ? 'Tokens used on this run' : 'Spend on this run'}
       </h2>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.045em' }}>{money(f.cost_usd)}</span>
+        <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.045em' }}>{tk ? compactNum(f.tokens_in + f.tokens_out) : money(f.cost_usd)}</span>
+        {tk && <span style={{ fontSize: 13, color: '#74717A' }}>tokens · counts against your Claude plan</span>}
         {est != null && <span style={{ fontSize: 13, color: '#74717A' }}>of ${Math.round(est)} estimate</span>}
       </div>
       {pct != null && (

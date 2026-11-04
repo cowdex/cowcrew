@@ -84,3 +84,9 @@ export function plural(n: number, one: string, many = one + 's'): string {
 export function minus(n: number): string {
   return '−' + Math.abs(n);
 }
+
+/** Usage in the unit that matches how the user pays: tokens on a Claude plan, dollars on the API. */
+export function usage(tokensMode: boolean, usd: number, tokens: number | undefined, short = false): string {
+  if (tokensMode) return `${compactNum(Math.round(tokens ?? 0))} tokens`;
+  return short ? moneyShort(usd) : money(usd);
+}

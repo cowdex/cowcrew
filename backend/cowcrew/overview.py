@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from collections import defaultdict
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from cowcrew.agents.runner import ActiveRun
@@ -34,10 +35,24 @@ def _ago(days: float) -> str:
     return to_iso(datetime.now(UTC) - timedelta(days=days))
 
 
+USD = "json_extract(data, '$.cost_usd')"
+TOKENS = ("(COALESCE(json_extract(data, '$.input_tokens'), 0)"
+          " + COALESCE(json_extract(data, '$.output_tokens'), 0))")
+
+
 def spend_since_days(db: Database, days: float, until_days: float = 0) -> float:
-    """Sum of cost events in the window (now - days, now - until_days]."""
+    """Dollars of cost events in the window (now - days, now - until_days]."""
+    return _sum_since(db, USD, days, until_days)
+
+
+def tokens_since_days(db: Database, days: float, until_days: float = 0) -> float:
+    """Tokens (input incl. cache + output) of cost events in the same kind of window."""
+    return _sum_since(db, TOKENS, days, until_days)
+
+
+def _sum_since(db: Database, expr: str, days: float, until_days: float) -> float:
     return float(db.scalar(
-        "SELECT COALESCE(SUM(json_extract(data, '$.cost_usd')), 0) FROM events "
+        f"SELECT COALESCE(SUM({expr}), 0) FROM events "
         "WHERE kind = 'cost' AND ts > ? AND ts <= ?", (_ago(days), _ago(until_days))) or 0.0)
 
 
@@ -47,7 +62,7 @@ def _project_filter(project_id: int | None, alias: str = "f") -> tuple[str, tupl
     return f" AND {alias}.project_id = ?", (project_id,)
 
 
-def _kpis(db: Database, rows: list[sqlite3.Row], budget: float, spend_7d: float,
+def _kpis(db: Database, rows: list[sqlite3.Row], budget: Budget,
           pf: tuple[str, tuple[int, ...]]) -> Kpis:
     committed = db.all(
         "SELECT t.attempts FROM tasks t JOIN features f ON f.id = t.feature_id "
@@ -63,8 +78,10 @@ def _kpis(db: Database, rows: list[sqlite3.Row], budget: float, spend_7d: float,
         first_try_pass_num=first,
         ci_failing=sum(effective_status(r) == "ci" and latest_ci_status(db, r["id"]) == "failure"
                        for r in active),
-        spend_7d_usd=round(spend_7d, 2),
-        budget_usd=budget,
+        spend_7d_usd=round(budget.usd_7d, 2),
+        budget_usd=budget.usd,
+        spend_7d_tokens=int(budget.tokens_7d),
+        budget_tokens=budget.tokens,
     )
 
 
@@ -86,35 +103,46 @@ def _board(db: Database, rows: list[sqlite3.Row]) -> list[BoardRow]:
     return board
 
 
-def _spend(db: Database, spend_7d: float, budget: float) -> Spend:
-    prev = spend_since_days(db, 14, 7)
+def _spend(db: Database, budget: Budget) -> Spend:
+    tokens_mode = budget.unit == "tokens"
+    total = budget.tokens_7d if tokens_mode else budget.usd_7d
+    prev = (tokens_since_days if tokens_mode else spend_since_days)(db, 14, 7)
     rows = db.all(
         "SELECT json_extract(data, '$.model') AS model, agent, "
-        "SUM(json_extract(data, '$.cost_usd')) AS usd FROM events "
+        f"SUM({USD}) AS usd, SUM({TOKENS}) AS tokens FROM events "
         "WHERE kind = 'cost' AND ts > ? GROUP BY model, agent", (_ago(7),))
     by_model: dict[str, float] = defaultdict(float)
+    tokens_by_model: dict[str, float] = defaultdict(float)
     agents: dict[str, list[str]] = defaultdict(list)
     for r in rows:
         model = r["model"] or "unknown"
         by_model[model] += r["usd"] or 0.0
+        tokens_by_model[model] += r["tokens"] or 0.0
         name = AGENT_SHORT.get(r["agent"], r["agent"])
         if name not in agents[model]:
             agents[model].append(name)
     first_ts = db.scalar("SELECT MIN(ts) FROM events WHERE kind = 'cost' AND ts > ?", (_ago(7),))
     covered = 7.0
     if first_ts:
-        covered = min(7.0, max(1.0, (datetime.now(UTC) - parse_iso(first_ts)).total_seconds()
-                               / 86400))
+        covered = min(7.0, (datetime.now(UTC) - parse_iso(first_ts)).total_seconds() / 86400)
+    # Extrapolate only once there are two days of history; one busy evening isn't a trend.
+    scale = 7 / covered if covered >= 2 else 1.0
+    shares = tokens_by_model if tokens_mode else by_model
+    limit = budget.tokens if tokens_mode else budget.usd
     return Spend(
-        total_usd=round(spend_7d, 2),
-        wow_pct=round(100 * (spend_7d - prev) / prev, 1) if prev > 0 else None,
+        unit=budget.unit,  # type: ignore[arg-type]
+        total_usd=round(budget.usd_7d, 2),
+        total_tokens=int(budget.tokens_7d),
+        wow_pct=round(100 * (total - prev) / prev, 1) if prev > 0 else None,
         by_model=[
-            ModelSpend(model=m, agents=", ".join(agents[m]), usd=round(usd, 2),
-                       pct=round(100 * usd / spend_7d, 1) if spend_7d else 0.0)
-            for m, usd in sorted(by_model.items(), key=lambda kv: -kv[1])
+            ModelSpend(model=m, agents=", ".join(agents[m]), usd=round(by_model[m], 2),
+                       tokens=int(tokens_by_model[m]),
+                       pct=round(100 * shares[m] / total, 1) if total else 0.0)
+            for m in sorted(by_model, key=lambda k: -shares[k])
         ],
-        projected_usd=round(spend_7d * 7 / covered, 2),
-        budget_used_pct=round(100 * spend_7d / budget, 1) if budget else 0.0,
+        projected_usd=round(budget.usd_7d * scale, 2),
+        projected_tokens=int(budget.tokens_7d * scale),
+        budget_used_pct=round(100 * total / limit, 1) if limit else 0.0,
     )
 
 
@@ -185,9 +213,10 @@ def _trends(db: Database, pf: tuple[str, tuple[int, ...]]) -> list[Trend]:
 
 def _agents(db: Database, rows: list[sqlite3.Row], models: dict[str, str],
             active: list[ActiveRun], context: dict[str, float]) -> list[AgentCard]:
-    spend = {r["agent"]: r["usd"] or 0.0 for r in db.all(
-        "SELECT agent, SUM(json_extract(data, '$.cost_usd')) AS usd FROM events "
-        "WHERE kind = 'cost' AND ts > ? GROUP BY agent", (_ago(7),))}
+    sums = db.all(f"SELECT agent, SUM({USD}) AS usd, SUM({TOKENS}) AS tokens FROM events "
+                  "WHERE kind = 'cost' AND ts > ? GROUP BY agent", (_ago(7),))
+    spend = {r["agent"]: r["usd"] or 0.0 for r in sums}
+    spent_tokens = {r["agent"]: r["tokens"] or 0 for r in sums}
     live = [r for r in rows if r["status"] not in TERMINAL_STATES and r["status"] != "paused"]
     cards = []
     for agent in WORKER_AGENTS:
@@ -206,7 +235,8 @@ def _agents(db: Database, rows: list[sqlite3.Row], models: dict[str, str],
         cards.append(AgentCard(
             key=agent, name=AGENT_NAMES[agent], model=models.get(agent, "sonnet"),
             state=state, job=job[:140], context_pct=round(ctx, 1),  # type: ignore[arg-type]
-            spend_usd=round(spend.get(agent, 0.0), 2), feature_id=feature_id))
+            spend_usd=round(spend.get(agent, 0.0), 2),
+            spend_tokens=int(spent_tokens.get(agent, 0)), feature_id=feature_id))
     return cards
 
 
@@ -249,21 +279,35 @@ def _derived_state(db: Database, agent: str,
     return "idle", "", None
 
 
+@dataclass(frozen=True)
+class Budget:
+    """Weekly spend in both units, the limits, and which unit the user is billed in."""
+
+    unit: str
+    usd: float
+    tokens: int
+    usd_7d: float
+    tokens_7d: float
+
+
 def build_overview(
-    db: Database, project_id: int | None, budget: float, models: dict[str, str],
+    db: Database, project_id: int | None, budget_usd: float, models: dict[str, str],
     active: list[ActiveRun], context: dict[str, float],
+    billing: str = "api", budget_tokens: int = 0,
 ) -> Overview:
     pf = _project_filter(project_id)
     rows = db.all(f"SELECT f.* FROM features f WHERE 1 = 1{pf[0]} ORDER BY f.id DESC", pf[1])
-    spend_7d = spend_since_days(db, 7)
+    budget = Budget(unit="tokens" if billing == "subscription" else "usd", usd=budget_usd,
+                    tokens=budget_tokens, usd_7d=spend_since_days(db, 7),
+                    tokens_7d=tokens_since_days(db, 7))
     activity = db.all(
         "SELECT e.* FROM events e LEFT JOIN features f ON f.id = e.feature_id "
         f"WHERE e.kind IN ({','.join('?' * len(MEANINGFUL))}){pf[0]} "
         "ORDER BY e.ts DESC, e.id DESC LIMIT 8", (*MEANINGFUL, *pf[1]))
     return Overview(
-        kpis=_kpis(db, rows, budget, spend_7d, pf),
+        kpis=_kpis(db, rows, budget, pf),
         board=_board(db, rows),
-        spend=_spend(db, spend_7d, budget),
+        spend=_spend(db, budget),
         trends=_trends(db, pf),
         features=[summary_of(db, r) for r in rows],
         agents=_agents(db, rows, models, active, context),

@@ -51,6 +51,7 @@ export interface FeatureSummary {
   tasks_total: number;
   elapsed_seconds: number;
   cost_usd: number;
+  tokens?: number;
   waiting_on_you: boolean;
   created_at: string;
   updated_at: string;
@@ -147,7 +148,7 @@ export interface FeatureDetail {
   acceptance: Acceptance | null;
   findings: Finding[];
   ci_runs: CIRun[];
-  spend_by_agent: { agent: AgentKey; model: string; cost_usd: number }[];
+  spend_by_agent: { agent: AgentKey; model: string; cost_usd: number; tokens?: number }[];
   checklist: { title: string; sub: string; ok: boolean; link: ChecklistLink }[];
 }
 
@@ -159,6 +160,7 @@ export interface AgentCard {
   job: string;
   context_pct: number;
   spend_usd: number;
+  spend_tokens?: number;
   feature_id: number | null;
 }
 
@@ -172,13 +174,18 @@ export interface Overview {
     ci_failing: number;
     spend_7d_usd: number;
     budget_usd: number;
+    spend_7d_tokens?: number;
+    budget_tokens?: number;
   };
   board: { feature_id: number; title: string; cells: StageState[]; summary: string }[];
   spend: {
+    unit?: 'usd' | 'tokens';
     total_usd: number;
+    total_tokens?: number;
     wow_pct: number | null;
-    by_model: { model: string; agents: string; usd: number; pct: number }[];
+    by_model: { model: string; agents: string; usd: number; tokens?: number; pct: number }[];
     projected_usd: number;
+    projected_tokens?: number;
     budget_used_pct: number;
   };
   trends: {
@@ -194,8 +201,12 @@ export interface Overview {
   activity: Event[];
 }
 
+export type Billing = 'api' | 'subscription';
+
 export interface Settings {
   budget_usd_week: number;
+  budget_tokens_week?: number;
+  billing?: Billing;
   max_attempts: number;
   models: Record<WorkerAgentKey, string>;
   simulate: boolean;

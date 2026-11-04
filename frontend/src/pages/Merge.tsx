@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { ChecklistLink, FeatureDetail } from '../api/types';
 import { Chip, ErrorState, ExtLink, FeatureHeader, Loading, Modal, NumBox } from '../components/ui';
-import { duration, minus, money, plural } from '../lib/format';
+import { compactNum, duration, minus, money, plural } from '../lib/format';
 import { numColor } from '../lib/status';
 import { toast } from '../lib/toast';
-import { useApp } from '../state/app';
+import { useApp, useTokensMode } from '../state/app';
 import { useAction, useFeaturePage } from './shared';
 
 export default function MergePage() {
@@ -27,6 +27,7 @@ function defaultMessage(d: FeatureDetail): string {
 }
 
 function MergeView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureDetail) => void }) {
+  const tk = useTokensMode();
   const f = d.feature;
   const nav = useNavigate();
   const { projects } = useApp();
@@ -190,8 +191,8 @@ function MergeView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureD
               </div>
             </div>
             <div className="kv" style={{ paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
-              <span>Agent cost</span>
-              <span>{money(f.cost_usd)}</span>
+              <span>{tk ? 'Agent tokens' : 'Agent cost'}</span>
+              <span>{tk ? compactNum(f.tokens_in + f.tokens_out) : money(f.cost_usd)}</span>
             </div>
             <div className="kv">
               <span>SWE ⇄ Tester loops</span>

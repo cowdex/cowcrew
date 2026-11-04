@@ -15,6 +15,7 @@ from cowcrew.models import DEFAULT_MODELS, Settings, SettingsUpdate
 
 DEFAULT_PORT = 8787
 DEFAULT_BUDGET_USD = 150.0
+DEFAULT_BUDGET_TOKENS = 20_000_000
 DEFAULT_MAX_ATTEMPTS = 4
 
 
@@ -58,6 +59,21 @@ def _macos_keychain_login() -> bool:
     return found.returncode == 0
 
 
+def billing_mode(creds: bool) -> str:
+    """'api' when agents are billed per token in dollars, 'subscription' on a Claude plan.
+
+    An API key (or a cloud provider) wins over a Claude Code login, as in the SDK itself.
+    COWCREW_BILLING=api|subscription overrides the detection.
+    """
+    forced = os.environ.get("COWCREW_BILLING", "").strip().lower()
+    if forced in {"api", "subscription"}:
+        return forced
+    if any(os.environ.get(k) for k in (
+            "ANTHROPIC_API_KEY", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX")):
+        return "api"
+    return "subscription" if creds else "api"
+
+
 _gh_cache: tuple[float, bool] | None = None
 
 
@@ -90,6 +106,7 @@ class Config:
     simulate: bool
     has_credentials: bool
     frontend_dist: Path
+    billing: str = "api"
     sim_speed: float = 1.0  # multiplier on simulated sleeps; 0 = instant
     ci_poll_seconds: float = 20.0
     ci_timeout_seconds: float = 45 * 60.0
@@ -115,6 +132,7 @@ class Config:
             simulate=simulate,
             has_credentials=creds,
             frontend_dist=dist,
+            billing=billing_mode(creds and not simulate),
             sim_speed=_env_float("COWCREW_SIM_SPEED", 1.0),
             ci_poll_seconds=_env_float("COWCREW_CI_POLL_SECONDS", 20.0),
             ci_timeout_seconds=_env_float("COWCREW_CI_TIMEOUT_SECONDS", 45 * 60.0),
@@ -133,6 +151,20 @@ class SettingsStore:
         return float(self.db.get_setting("budget_usd_week", DEFAULT_BUDGET_USD))
 
     @property
+    def budget_tokens_week(self) -> int:
+        return int(self.db.get_setting("budget_tokens_week", DEFAULT_BUDGET_TOKENS))
+
+    @property
+    def billing(self) -> str:
+        return self.config.billing
+
+    def budget_left(self, spent_usd: float, spent_tokens: float) -> float:
+        """Share of the weekly budget still available, in the unit that matches billing."""
+        if self.billing == "subscription":
+            return self.budget_tokens_week - spent_tokens
+        return self.budget_usd_week - spent_usd
+
+    @property
     def max_attempts(self) -> int:
         return int(self.db.get_setting("max_attempts", DEFAULT_MAX_ATTEMPTS))
 
@@ -147,6 +179,8 @@ class SettingsStore:
     def update(self, body: SettingsUpdate) -> None:
         if body.budget_usd_week is not None:
             self.db.set_setting("budget_usd_week", body.budget_usd_week)
+        if body.budget_tokens_week is not None:
+            self.db.set_setting("budget_tokens_week", body.budget_tokens_week)
         if body.max_attempts is not None:
             self.db.set_setting("max_attempts", body.max_attempts)
         if body.models is not None:
@@ -155,6 +189,8 @@ class SettingsStore:
     def view(self) -> Settings:
         return Settings(
             budget_usd_week=self.budget_usd_week,
+            budget_tokens_week=self.budget_tokens_week,
+            billing=self.billing,  # type: ignore[arg-type]
             max_attempts=self.max_attempts,
             models=self.models,  # type: ignore[arg-type]
             simulate=self.config.simulate,

@@ -58,7 +58,9 @@ def build_state(
         else:
             runner = AgentRunner(
                 db, bus, settings,
-                remaining_budget=lambda: settings.budget_usd_week - spend_since_days(db, 7))
+                remaining_budget=(
+                    None if settings.billing == "subscription"
+                    else lambda: settings.budget_usd_week - spend_since_days(db, 7)))
     ci = ci or (SimulatedCI() if config.simulate else GhCli())
     orchestrator = Orchestrator(db, bus, runner, settings, config, ci)
     return AppState(config, db, bus, settings, runner, orchestrator)

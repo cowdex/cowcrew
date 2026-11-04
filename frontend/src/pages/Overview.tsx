@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import type { Event, Overview, StageState } from '../api/types';
 import { ACTIVITY_PATHS, IconPlus } from '../components/icons';
 import { Chip, Dot, EmptyCard, Loading, StageBar } from '../components/ui';
-import { duration, money, moneyShort, numberWord, plural, relTime } from '../lib/format';
+import { compactNum, duration, money, moneyShort, numberWord, plural, relTime, usage } from '../lib/format';
 import { AGENT_NAME, AGENT_STATE_KIND, AGENT_STATE_LABEL, FILL, STATE_WORD, featureChip, featureHref } from '../lib/status';
-import { useApp, useCrumbs } from '../state/app';
+import { useApp, useCrumbs, useTokensMode } from '../state/app';
 import { useNow } from '../state/hooks';
 
 const MONO = "'GitLab Mono', monospace";
@@ -211,13 +211,16 @@ function HeroArt() {
 
 function Kpis({ o }: { o: Overview }) {
   const k = o.kpis;
+  const tk = useTokensMode();
   const items = [
     { label: 'In flight', value: String(k.in_flight), unit: k.in_flight === 1 ? 'feature' : 'features', dot: '#7759C2' },
     { label: 'Waiting on you', value: String(k.waiting_on_you), unit: k.waiting_on_you === 1 ? 'gate' : 'gates', dot: '#FC6D26' },
     { label: 'Committed 7d', value: String(k.committed_7d), unit: k.committed_7d === 1 ? 'task' : 'tasks', dot: '#10B1B1' },
     { label: 'First-try pass', value: `${Math.round(k.first_try_pass_pct)}%`, unit: `${k.first_try_pass_num} of ${k.committed_7d}`, dot: '#10B1B1' },
     { label: 'CI failing', value: String(k.ci_failing), unit: k.ci_failing ? 'on-call fixing' : 'all green', dot: k.ci_failing ? '#E24329' : '#10B1B1' },
-    { label: 'Spend 7d', value: moneyShort(k.spend_7d_usd), unit: `of ${moneyShort(k.budget_usd)}`, dot: '#A989F5' },
+    tk
+      ? { label: 'Tokens 7d', value: compactNum(k.spend_7d_tokens ?? 0), unit: `of ${compactNum(k.budget_tokens ?? 0)}`, dot: '#A989F5' }
+      : { label: 'Spend 7d', value: moneyShort(k.spend_7d_usd), unit: `of ${moneyShort(k.budget_usd)}`, dot: '#A989F5' },
   ];
   return (
     <section aria-label="Key numbers" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
@@ -321,18 +324,20 @@ const MODEL_COLORS = ['#5943B6', '#A989F5', '#FC6D26', '#FCA326', '#7759C2', '#E
 
 function Spend({ o }: { o: Overview }) {
   const s = o.spend;
+  const tk = useTokensMode();
   return (
     <section aria-labelledby="spend-h" className="card" style={{ flex: '1 1 320px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 id="spend-h" className="h2">
-          Agent spend
+          {tk ? 'Agent usage' : 'Agent spend'}
         </h2>
         <Link to="/settings" style={{ fontSize: 13, fontWeight: 500 }}>
           Budget settings
         </Link>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-        <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.045em' }}>{money(s.total_usd)}</span>
+        <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.045em' }}>{tk ? compactNum(s.total_tokens ?? 0) : money(s.total_usd)}</span>
+        {tk && <span style={{ fontSize: 14, color: '#45424D' }}>tokens</span>}
         {s.wow_pct != null && (
           <span className="mono" style={{ fontSize: 12, color: '#171321' }}>
             {s.wow_pct >= 0 ? '+' : '−'}
@@ -352,18 +357,18 @@ function Spend({ o }: { o: Overview }) {
             <span>
               {m.model} <span style={{ color: '#74717A' }}>· {m.agents}</span>
             </span>
-            <span className="mono">{money(m.usd)}</span>
+            <span className="mono">{tk ? compactNum(m.tokens ?? 0) : money(m.usd)}</span>
             <span className="mono" style={{ fontSize: 12, color: '#74717A', textAlign: 'right' }}>
               {Math.round(m.pct)}%
             </span>
           </div>
         ))}
-        {s.by_model.length === 0 && <span className="muted">No spend yet this week.</span>}
+        {s.by_model.length === 0 && <span className="muted">{tk ? 'No usage yet this week.' : 'No spend yet this week.'}</span>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: '1px solid #EFEEF1', marginTop: 'auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span className="label">Projected</span>
-          <span style={{ fontSize: 20, fontWeight: 600 }}>{money(s.projected_usd)}</span>
+          <span style={{ fontSize: 20, fontWeight: 600 }}>{tk ? `${compactNum(s.projected_tokens ?? 0)} tokens` : money(s.projected_usd)}</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span className="label">Budget</span>
@@ -420,6 +425,7 @@ function Trends({ o }: { o: Overview }) {
 const GRID = '2.2fr 2fr 0.6fr 0.8fr 0.7fr 1.1fr';
 
 function FeaturesTable({ o }: { o: Overview }) {
+  const tk = useTokensMode();
   return (
     <section aria-labelledby="features-h" className="card" style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 20px', borderBottom: '1px solid #E4E3E7' }}>
@@ -440,7 +446,7 @@ function FeaturesTable({ o }: { o: Overview }) {
               className="mono"
               style={{ display: 'grid', gridTemplateColumns: GRID, gap: 16, padding: '10px 20px', background: '#FAFAFA', borderBottom: '1px solid #E4E3E7', fontSize: 12, color: '#74717A' }}
             >
-              {['Feature', 'Progress', 'Tasks', 'Elapsed', 'Cost', 'Status'].map((h) => (
+              {['Feature', 'Progress', 'Tasks', 'Elapsed', tk ? 'Tokens' : 'Cost', 'Status'].map((h) => (
                 <span key={h} role="columnheader">
                   {h}
                 </span>
@@ -473,7 +479,7 @@ function FeaturesTable({ o }: { o: Overview }) {
                     {duration(f.elapsed_seconds)}
                   </span>
                   <span role="cell" className="mono" style={{ fontSize: 13 }}>
-                    {money(f.cost_usd)}
+                    {usage(tk, f.cost_usd, f.tokens)}
                   </span>
                   <span role="cell">
                     <Chip kind={c.kind}>{c.label}</Chip>
@@ -490,7 +496,9 @@ function FeaturesTable({ o }: { o: Overview }) {
 
 function Agents({ o }: { o: Overview }) {
   const models = new Set(o.agents.map((a) => a.model)).size;
-  const maxSpend = Math.max(0.01, ...o.agents.map((a) => a.spend_usd));
+  const tk = useTokensMode();
+  const spendOf = (a: Overview['agents'][number]) => (tk ? a.spend_tokens ?? 0 : a.spend_usd);
+  const maxSpend = Math.max(0.01, ...o.agents.map(spendOf));
   return (
     <section aria-labelledby="agents-h" className="card" style={{ flex: '999 1 560px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -506,7 +514,7 @@ function Agents({ o }: { o: Overview }) {
         {o.agents.map((a) => {
           const k = AGENT_STATE_KIND[a.state];
           const ctx = Math.round(a.context_pct);
-          const spendPct = Math.round((a.spend_usd / maxSpend) * 100);
+          const spendPct = Math.round((spendOf(a) / maxSpend) * 100);
           return (
             <div key={a.key} className="card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -524,7 +532,7 @@ function Agents({ o }: { o: Overview }) {
                 )}
               </span>
               <Meter label="Context" pct={ctx} text={`${ctx}%`} color={ctx > 65 ? '#FC6D26' : '#7759C2'} />
-              <Meter label="Spend" pct={spendPct} text={moneyShort(a.spend_usd)} color="#A989F5" />
+              <Meter label={tk ? 'Tokens' : 'Spend'} pct={spendPct} text={tk ? compactNum(a.spend_tokens ?? 0) : moneyShort(a.spend_usd)} color="#A989F5" />
             </div>
           );
         })}

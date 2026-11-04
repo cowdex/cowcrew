@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import type { FeatureSummary } from '../api/types';
 import { Chip, EmptyCard, Loading, StageBar } from '../components/ui';
 import { IconPlus } from '../components/icons';
-import { duration, money, relTime } from '../lib/format';
+import { duration, relTime, usage } from '../lib/format';
 import { PLAN_STATUSES, featureChip } from '../lib/status';
-import { useApp, useCrumbs } from '../state/app';
+import { useApp, useCrumbs, useTokensMode } from '../state/app';
 import { useFeatures } from '../state/hooks';
 
 interface ListSpec {
@@ -62,6 +62,7 @@ function FeatureList({ spec }: { spec: ListSpec }) {
 }
 
 function FeatureCard({ f, cta }: { f: FeatureSummary; cta: { label: string; to: string; primary: boolean } }) {
+  const tk = useTokensMode();
   const c = featureChip(f);
   return (
     <li className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, borderColor: f.waiting_on_you ? '#F9D29A' : undefined, background: f.waiting_on_you ? '#FFFBF4' : undefined }}>
@@ -87,7 +88,7 @@ function FeatureCard({ f, cta }: { f: FeatureSummary; cta: { label: string; to: 
           {f.tasks_done}/{f.tasks_total} tasks
         </span>
         <span>{duration(f.elapsed_seconds)}</span>
-        <span>{money(f.cost_usd)}</span>
+        <span>{usage(tk, f.cost_usd, f.tokens)}</span>
         <span>updated {relTime(f.updated_at)} ago</span>
       </div>
       <Link to={cta.to} className={'btn' + (cta.primary ? ' btn-primary' : '')} style={{ alignSelf: 'flex-start' }}>

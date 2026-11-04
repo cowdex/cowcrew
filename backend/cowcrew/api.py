@@ -108,7 +108,8 @@ async def delete_project(project_id: int, state: State) -> dict[str, bool]:
 def overview(state: State, project_id: int | None = None) -> Overview:
     return build_overview(
         state.db, project_id, state.settings.budget_usd_week, state.settings.models,
-        list(state.runner.active.values()), state.runner.context_pct)
+        list(state.runner.active.values()), state.runner.context_pct,
+        billing=state.settings.billing, budget_tokens=state.settings.budget_tokens_week)
 
 
 # ----------------------------------------------------------------------------- features

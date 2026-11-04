@@ -42,7 +42,7 @@ from cowcrew.models import (
     Task,
     TesterOutput,
 )
-from cowcrew.overview import spend_since_days
+from cowcrew.overview import spend_since_days, tokens_since_days
 from cowcrew.settings import Config, SettingsStore, gh_available
 from cowcrew.store import tasks_of
 
@@ -222,9 +222,14 @@ class Orchestrator:
 
     async def _run(self, job: AgentJob) -> Any:
         """Budget check, human notes, then one agent run."""
-        budget = self.settings.budget_usd_week
-        if budget > 0 and spend_since_days(self.db, 7) >= budget:
-            raise PipelineError(f"Weekly budget of ${budget:.0f} reached — raise it in Settings")
+        if self.settings.billing == "subscription":
+            limit, used = self.settings.budget_tokens_week, tokens_since_days(self.db, 7)
+            label = f"{limit / 1e6:g}M tokens"
+        else:
+            limit, used = self.settings.budget_usd_week, spend_since_days(self.db, 7)
+            label = f"${limit:.0f}"
+        if limit > 0 and used >= limit:
+            raise PipelineError(f"Weekly budget of {label} reached — raise it in Settings")
         job.prompt = briefs.with_notes(job.prompt, self._notes_for(job.feature_id, job.agent))
         return await self.runner.run(job)
 
