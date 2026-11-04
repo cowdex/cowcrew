@@ -195,3 +195,28 @@ def test_structured_output_is_always_allowed(tmp_path: Path) -> None:
     for tools, scope in ((set(), "none"), ({"Read"}, "none"), ({"Edit", "Bash"}, "any")):
         policy = ToolPolicy("product_architect", tmp_path, tools, scope)  # type: ignore[arg-type]
         assert policy.check("StructuredOutput", {"questions": []}).allowed
+
+
+@pytest.mark.parametrize("command", [
+    # angle brackets inside literal test data are not redirects
+    "uv run python -c 'cases = [\"javascript:alert(1)\", \"data:text/html,<script>\"]'",
+    """python -c "print('<b>' + '</b>')" """,
+    "cat > tests/adv.py <<'EOF'\ncases = ['data:text/html,<b>', 'a > b; c | d']\nEOF\n"
+    "pytest -q tests/adv.py",
+    "grep -n 'a > b' tests/test_links.py",
+])
+def test_literal_shell_characters_are_not_syntax(wt: Path, command: str) -> None:
+    assert qa_policy(wt).check("Bash", {"command": command}).allowed
+
+
+@pytest.mark.parametrize("command", [
+    "python -c 'print(1)' > src/app.py",
+    """echo "$(rm -rf ~)" """,
+    "echo `rm -rf /`",
+    "cat > src/x.py <<EOF\nprint(1)\nEOF",
+    "cat <<'EOF' > src/x.py\nhi\nEOF",
+    """echo hi > "src/quoted target.py" """,
+    "python -c 'x' ; git push origin HEAD",
+])
+def test_real_shell_syntax_is_still_checked(wt: Path, command: str) -> None:
+    assert not qa_policy(wt).check("Bash", {"command": command}).allowed

@@ -176,21 +176,32 @@ class ToolPolicy:
             if pattern.search(command):
                 return _deny("piping a download into an interpreter is not allowed")
         cwd = self.root
-        for segment in SEGMENT_SPLIT.split(command):
-            segment = segment.strip()
-            if not segment:
+        # Separators and redirects only count outside literal strings, so test data like
+        # 'data:text/html,<script>' or a quoted heredoc body is never read as shell syntax.
+        masked = _mask_literals(command)
+        start = 0
+        for sep in [*SEGMENT_SPLIT.finditer(masked), None]:
+            end = sep.start() if sep else len(command)
+            segment, seg_masked = command[start:end], masked[start:end]
+            start = sep.end() if sep else end
+            if not segment.strip():
                 continue
-            decision, cwd = self._check_segment(segment, cwd)
+            decision, cwd = self._check_segment(segment, seg_masked, cwd)
             if not decision.allowed:
                 return decision
         return ALLOW
 
-    def _check_segment(self, segment: str, cwd: Path) -> tuple[Decision, Path]:
-        for target in REDIRECT.findall(segment):
+    def _check_segment(self, segment: str, masked: str, cwd: Path) -> tuple[Decision, Path]:
+        kept, last = [], 0
+        for m in REDIRECT.finditer(masked):
+            target = segment[m.start(1):m.end(1)].strip("'\"")
             decision = self.check_write(target, cwd=cwd, via_bash=True)
             if not decision.allowed:
                 return decision, cwd
-        tokens = _tokens(REDIRECT.sub(" ", segment))
+            kept.append(segment[last:m.start()])
+            last = m.end()
+        kept.append(segment[last:])
+        tokens = _tokens(" ".join(kept))
         tokens = _unwrap(tokens)
         if not tokens:
             return ALLOW, cwd
@@ -276,6 +287,61 @@ class ToolPolicy:
             if not decision.allowed:
                 return _deny(f"rm outside the agent's write scope: {target} ({decision.reason})")
         return ALLOW
+
+
+HEREDOC_QUOTED = re.compile(r"<<-?\s*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def _mask_literals(command: str) -> str:
+    """Same-length copy of `command` with literal text replaced by 'x'.
+
+    Masked: single-quoted strings, double-quoted strings without command substitution, and
+    bodies of quoted heredocs (<<'EOF'). Anything the shell could still execute stays visible,
+    so the checks remain conservative.
+    """
+    out = list(command)
+    i, n = 0, len(command)
+
+    def blank(a: int, b: int) -> None:
+        for k in range(a, b):
+            out[k] = "x"
+
+    while i < n:
+        c = command[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == "'":
+            j = command.find("'", i + 1)
+            if j == -1:
+                break
+            blank(i + 1, j)
+            i = j + 1
+            continue
+        if c == '"':
+            j = i + 1
+            while j < n and command[j] != '"':
+                j += 2 if command[j] == "\\" else 1
+            if j >= n:
+                break
+            body = command[i + 1:j]
+            if "$(" not in body and "`" not in body:
+                blank(i + 1, j)
+            i = j + 1
+            continue
+        m = HEREDOC_QUOTED.match(command, i)
+        if m:
+            body_start = command.find("\n", m.end())
+            if body_start == -1:
+                break
+            end_line = re.compile(rf"^[ \t]*{re.escape(m.group(2))}[ \t]*$", re.M)
+            stop = end_line.search(command, body_start + 1)
+            body_end = stop.end() if stop else n
+            blank(body_start + 1, body_end)  # only the body; the rest of line 1 is shell
+            i = body_end
+            continue
+        i += 1
+    return "".join(out)
 
 
 def _tokens(segment: str) -> list[str]:
