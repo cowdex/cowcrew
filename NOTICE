@@ -1,0 +1,18 @@
+CowCrew
+Copyright 2026 the CowCrew authors
+
+This product includes software adapted from Squid
+(https://github.com/iusztinpaul/squid) by Paul Iusztin, licensed under the
+Apache License, Version 2.0.
+
+The agent role prompts in backend/cowcrew/agents/prompts/*.md are adapted
+from Squid's agents/*.md files (product-architect, software-engineer, tester,
+pr-reviewer, oncall-engineer). They were modified for CowCrew: the
+orchestrator owns commits, pushes and file writes for the plan, agents return
+structured JSON, and tracker/GitHub-issue steps were removed. The pipeline
+shape (grill -> groom -> SWE/Tester loop -> PA acceptance -> PR review -> CI
+with On-Call, with two human gates) follows Squid's squid-plan,
+squid-implement-task, squid-review and squid-review-ci skills.
+
+A copy of the Apache License 2.0 is in
+backend/cowcrew/agents/prompts/LICENSE.squid.
