@@ -147,7 +147,10 @@ whole flow without an API key.
    `owner/repo` if you want PRs).
 4. Click **New feature spec**, describe what you want, and follow it through the gates.
 
-Start with a small feature on a throwaway repo to see how the crew behaves.
+Want a guided first run? **[docs/DEMO.md](docs/DEMO.md)** walks you through a full real-agent
+scenario on a bundled starter app (`examples/shortly`): a safety drill, a warm-up feature, and a
+security-heavy feature that exercises every gate, the tester loop, review Blockers and a red CI
+run fixed by On-Call.
 
 | Command      | What it does                                         |
 |--------------|------------------------------------------------------|
