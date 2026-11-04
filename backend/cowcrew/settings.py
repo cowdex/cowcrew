@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +39,23 @@ def has_credentials() -> bool:
     ):
         return True
     config_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
-    return (config_dir / ".credentials.json").is_file()
+    if (config_dir / ".credentials.json").is_file():
+        return True
+    return _macos_keychain_login()
+
+
+def _macos_keychain_login() -> bool:
+    """On macOS, Claude Code keeps its login in the Keychain instead of a file."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        found = subprocess.run(
+            ["security", "find-generic-password", "-s", "Claude Code-credentials"],
+            capture_output=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return found.returncode == 0
 
 
 _gh_cache: tuple[float, bool] | None = None
