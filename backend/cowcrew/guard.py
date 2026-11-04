@@ -27,6 +27,8 @@ WriteScope = Literal["any", "tests", "none"]
 
 WRITE_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit"})
 READ_TOOLS = frozenset({"Read", "Glob", "Grep"})
+# How the SDK hands back a structured result. It only returns data, so every agent may call it.
+RESULT_TOOLS = frozenset({"StructuredOutput"})
 
 TEST_DIRS = frozenset({"tests", "test", "__tests__", "spec", "specs", "testing"})
 CI_DIRS = frozenset({".github", ".circleci", ".buildkite", ".gitlab"})
@@ -95,6 +97,8 @@ class ToolPolicy:
     # ------------------------------------------------------------------ entry point
 
     def check(self, tool_name: str, tool_input: dict[str, Any]) -> Decision:
+        if tool_name in RESULT_TOOLS:
+            return ALLOW
         if tool_name not in self.tools:
             return _deny(f"{tool_name} is not available to this agent")
         if tool_name in WRITE_TOOLS:

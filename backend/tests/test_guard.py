@@ -188,3 +188,10 @@ def test_read_only_agents_cannot_write_via_bash(wt: Path) -> None:
     assert not policy.check("Bash", {"command": "echo x > src/app.py"}).allowed
     assert not policy.check("Bash", {"command": "rm src/app.py"}).allowed
     assert not policy.check("Bash", {"command": "cp a src/b"}).allowed
+
+
+def test_structured_output_is_always_allowed(tmp_path: Path) -> None:
+    from cowcrew.guard import ToolPolicy
+    for tools, scope in ((set(), "none"), ({"Read"}, "none"), ({"Edit", "Bash"}, "any")):
+        policy = ToolPolicy("product_architect", tmp_path, tools, scope)  # type: ignore[arg-type]
+        assert policy.check("StructuredOutput", {"questions": []}).allowed

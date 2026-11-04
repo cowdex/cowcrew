@@ -34,7 +34,7 @@ function MergeView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureD
   const base = projects?.find((p) => p.id === f.project_id)?.default_branch ?? 'main';
   const [message, setMessage] = useState(() => defaultMessage(d));
   const [deleteBranch, setDeleteBranch] = useState(true);
-  const [followUp, setFollowUp] = useState(true);
+  const [followUp, setFollowUp] = useState(false);
   const [sendBack, setSendBack] = useState(false);
   const [note, setNote] = useState('');
   const { busy, run } = useAction(setDetail);
