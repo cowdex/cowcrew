@@ -91,10 +91,6 @@ Settings.
 
 ## Example: Shortly
 
-<p align="center">
-  <img src="docs/assets/example-shortly.png" alt="Example run on Shortly: a 2-line spec, 4 questions from the planner, 3 tasks coded, tested and committed, pull request #1 merged; the repo went from 5 to 18 tests" width="100%">
-</p>
-
 [`examples/shortly`](examples/shortly) is a deliberately unfinished URL shortener (FastAPI,
 in-memory storage, 5 tests) that ships with CowCrew so you can watch a real run on a small
 codebase. Its [`AGENTS.md`](examples/shortly/AGENTS.md) tells the agents how to install, test
