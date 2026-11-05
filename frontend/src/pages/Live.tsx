@@ -228,7 +228,7 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
           background: 'radial-gradient(circle, #E4E3E7 1px, transparent 1.2px) 0 0 / 18px 18px, #FFFFFF',
         }}
       >
-        <div style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'stretch' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
             <h2 id="map-h" className="h2">
               Pipeline map
@@ -290,7 +290,25 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: '#45424D' }}>
+          <div
+            aria-label="Status legend"
+            style={{
+              marginTop: 'auto',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '8px 20px',
+              padding: '10px 14px',
+              border: '1px solid #E4E3E7',
+              borderRadius: 10,
+              background: '#FFFFFF',
+              fontSize: 12,
+              color: '#45424D',
+            }}
+          >
+            <span className="mono" style={{ color: '#74717A' }}>
+              Status
+            </span>
             {(
               [
                 ['done', 'Done'],
@@ -300,8 +318,8 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
                 ['todo', 'Not started'],
               ] as [NState, string][]
             ).map(([k, l]) => (
-              <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Dot color={NC[k]} size={8} />
+              <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', lineHeight: 1 }}>
+                <Dot color={NC[k]} size={8} style={{ flex: 'none' }} />
                 {l}
               </span>
             ))}
