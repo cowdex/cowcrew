@@ -46,10 +46,10 @@ def _wrap(cwd: Path, body: str) -> str:
 
 def grill(cwd: Path, title: str, spec: str) -> str:
     return _wrap(cwd, f"""
-MODE: grilling. Read the feature spec below against the codebase and return the questions that
-must be answered before the work can be planned — at most 5, each one specific and decision-
-shaped (offer your recommended answer in the question). Anything you can answer by reading the
-code or docs, explore instead of asking. If nothing is genuinely open, return an empty list.
+JOB: questions. Compare the feature request below with the codebase and return the questions
+that must be answered before the work can be planned: at most 5, each about a concrete choice,
+with the answer you would pick included. Look up anything the code or docs already answer
+instead of asking. If nothing is unclear, return an empty list.
 
 Feature: {title}
 
@@ -65,10 +65,10 @@ def groom(
     note = (f"\nThe human requested changes to the previous plan:\n{change_note}\n"
             if change_note else "")
     return _wrap(cwd, f"""
-MODE: feature-level grooming. Decompose the feature into the smallest ordered set of atomic,
-independently shippable tasks (typically 3-8), each with testable acceptance criteria. Draft at
-most ONE ADR for the whole feature if it involves a non-obvious architectural decision (else
-null), list any new glossary terms, and estimate effort (hours, agent cost in USD, files
+JOB: plan. Split the feature into the smallest ordered list of tasks that can each be
+committed on their own (usually 3-8), each with acceptance criteria a test can check. Write at
+most ONE decision record for the whole feature, only for a real architectural choice (else
+null), list any new glossary terms, and estimate the effort (hours, cost in USD, files
 touched). Write nothing to disk — the orchestrator writes the approved plan.
 
 Feature: {title}
@@ -114,7 +114,7 @@ SWE hand-off:
 def accept(cwd: Path, title: str, spec: str, tasks: list[Task], base: str) -> str:
     plan = "\n\n".join(_task_block(t) for t in tasks)
     return _wrap(cwd, f"""
-MODE: acceptance review for the feature "{title}". All tasks are committed on this branch
+JOB: acceptance for the feature "{title}". All tasks are committed on this branch
 (`git log {base}..HEAD`, `git diff {base}...HEAD`). Judge from the user's perspective whether
 the feature is right: flows, copy, errors, empty states, consistency, documentation discipline.
 Do not modify anything. Verdict ACCEPT or REJECT; on REJECT list every issue (they become one
@@ -133,8 +133,8 @@ def review(cwd: Path, title: str, base: str, diff: str, round_no: int, prior: li
                 if prior else "")
     return _wrap(cwd, f"""
 Review round {round_no} for the feature "{title}" (branch diff against {base} below; use
-`git diff {base}...HEAD -- <path>` and Read for more context). Walk every review dimension and
-tag every finding Blocker or Nit per the Severity Rule. Do not modify anything.
+`git diff {base}...HEAD -- <path>` and Read for more context). Cover every point in your
+checklist and tag every finding Blocker or Nit. Do not modify anything.
 {previous}
 {diff}
 """)
