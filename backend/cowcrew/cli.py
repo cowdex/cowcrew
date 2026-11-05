@@ -56,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
                        default=int(os.environ.get("COWCREW_PORT", DEFAULT_PORT)))
     serve.add_argument("--reload", action="store_true", help="auto-reload on code changes")
     serve.set_defaults(func=_serve)
+    sub.add_parser("app", help="open CowCrew in its own window (desktop app)").set_defaults(
+        func=lambda _args: __import__("cowcrew.desktop", fromlist=["main"]).main())
     sub.add_parser("seed", help="insert demo data").set_defaults(func=_seed)
     sub.add_parser("reset", help="wipe the database").set_defaults(func=_reset)
     args = parser.parse_args(argv)

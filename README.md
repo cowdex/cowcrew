@@ -216,6 +216,10 @@ whole flow without an API key.
    `owner/repo` if you want PRs).
 4. Click **New feature spec**, describe what you want, and follow it through the gates.
 
+**Prefer an app to the terminal?** On a Mac, run `make mac-app` once. It adds **CowCrew.app** to
+your Applications folder: open it from Launchpad or the Dock and the dashboard appears in its own
+window. Closing the window stops CowCrew. On any system, `make app` opens the same window.
+
 Want a guided first run? Start with the [Shortly example](#example-shortly), then
 **[docs/DEMO.md](docs/DEMO.md)** for the full real-agent scenario: a safety drill, a warm-up
 feature, and a security-heavy feature that exercises every gate, the tester loop, review

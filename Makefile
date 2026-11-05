@@ -1,4 +1,4 @@
-.PHONY: install dev build serve seed test demo reset
+.PHONY: install dev build serve seed test demo reset app mac-app
 
 BACKEND := backend
 FRONTEND := frontend
@@ -34,3 +34,11 @@ test:
 demo: build
 	cd $(BACKEND) && COWCREW_SIMULATE=1 uv run cowcrew seed
 	cd $(BACKEND) && COWCREW_SIMULATE=1 uv run cowcrew serve --port $(PORT)
+
+# CowCrew in its own window (no browser tab).
+app: build
+	cd $(BACKEND) && uv run cowcrew app
+
+# macOS: build CowCrew.app for the Dock/Launchpad (run once).
+mac-app: build
+	./scripts/make-mac-app.sh
