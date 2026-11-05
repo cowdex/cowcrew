@@ -1,7 +1,8 @@
 [project]
 name = "cowcrew"
 version = "0.1.0"
-description = "CowCrew: a local AI software factory that turns a feature spec into a merged change."
+description = "CowCrew: an open-source AI software factory. Five Claude agents plan, code, test, review and fix CI; you approve the plan and merge the PR."
+keywords = ["ai-agents", "agentic-ai", "software-factory", "claude", "claude-agent-sdk", "multi-agent", "code-review", "devsecops", "human-in-the-loop"]
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = [
@@ -10,6 +11,11 @@ dependencies = [
     "pydantic>=2.7",
     "claude-agent-sdk>=0.2.178",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cowdex/cowcrew"
+Repository = "https://github.com/cowdex/cowcrew"
+Issues = "https://github.com/cowdex/cowcrew/issues"
 
 [project.scripts]
 cowcrew = "cowcrew.cli:main"

@@ -2,6 +2,19 @@
   <img src="docs/assets/banner.png" alt="CowCrew, AI Software Factory: turn a feature spec into a merged pull request. Five AI agents do the work. You approve the plan and the merge." width="100%">
 </p>
 
+<h1 align="center">CowCrew: the open-source AI software factory</h1>
+
+<p align="center">
+  <b>Five Claude agents plan, code, test, review and fix CI for you.<br>You approve the plan and merge the pull request.</b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/cowdex/cowcrew/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/cowdex/cowcrew?style=flat-square&color=FC6D26&labelColor=45424D"></a>
+  <a href="https://github.com/cowdex/cowcrew/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/cowdex/cowcrew/ci.yml?branch=main&style=flat-square&label=ci&labelColor=45424D"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-171321?style=flat-square&labelColor=45424D"></a>
+  <a href="https://github.com/cowdex/cowcrew/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/cowdex/cowcrew?style=flat-square&color=10B1B1&labelColor=45424D"></a>
+</p>
+
 <p align="center">
   <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-171321?style=flat-square&labelColor=45424D">
   <img alt="React 18" src="https://img.shields.io/badge/react-18-7759C2?style=flat-square&labelColor=45424D">
@@ -17,7 +30,8 @@
   <a href="#example-shortly"><b>Example</b></a> ·
   <a href="#a-tour-of-the-dashboard"><b>Tour</b></a> ·
   <a href="#whats-new"><b>What's new</b></a> ·
-  <a href="#safety-guardrails"><b>Safety</b></a>
+  <a href="#safety-guardrails"><b>Safety</b></a> ·
+  <a href="#faq"><b>FAQ</b></a>
 </p>
 
 <br>
@@ -31,6 +45,9 @@ feature you want. A crew of five AI agents plans it, builds it task by task, tes
 it and gets CI green, all inside its own git worktree. You step in exactly twice: to **approve
 the plan** and to **merge the result**. A live dashboard shows every agent, every loop and every
 token (or dollar) while it happens.
+
+> ⭐ **If CowCrew is useful to you, star the repo.** It helps other developers find it and tells
+> me what to build next.
 
 <table>
   <tr>
@@ -52,6 +69,20 @@ token (or dollar) while it happens.
     </td>
   </tr>
 </table>
+
+## Why CowCrew?
+
+A single AI coding agent is fast, but it plans, writes and grades its own work. CowCrew splits
+the job the way a real team does, and keeps a human on the two decisions that matter.
+
+| | One coding agent | CowCrew |
+|---|---|---|
+| Who plans the work? | The same agent that writes it | A Product Architect asks questions first, then you approve the plan |
+| Who checks the code? | Itself | A separate Tester tries to break it; a PR Reviewer tags every finding |
+| Red CI? | You read the logs | An On-Call agent diagnoses it and hands back a fix |
+| What can the agent do? | Whatever its tools allow | Every tool call is checked by a policy; only the orchestrator commits |
+| What reaches `main`? | Whatever you accept | Only the exact commit that was reviewed, after you merge it |
+| Can you see it? | A terminal | A live dashboard with every agent, loop and token |
 
 ## How it works
 
@@ -289,6 +320,59 @@ examples/   shortly: a small FastAPI app to try CowCrew on
 ```
 </details>
 
+## FAQ
+
+<details>
+<summary><b>Does it work with a Claude Pro or Max subscription?</b></summary>
+<br>
+Yes. Log in to Claude Code on the same machine and CowCrew uses that login (including the macOS
+Keychain). Usage is then shown in tokens against a weekly budget. With an API key it shows
+dollars instead.
+</details>
+
+<details>
+<summary><b>Which languages and frameworks does it support?</b></summary>
+<br>
+Any project the agents can build and test from the command line. They read your
+<code>AGENTS.md</code> or <code>CLAUDE.md</code> to learn your install, test and lint commands.
+The bundled example is a Python/FastAPI app.
+</details>
+
+<details>
+<summary><b>Is it safe to let agents work on my repo?</b></summary>
+<br>
+Agents work in a separate git worktree, can't commit, push or touch CI config, and every tool
+call goes through a policy check. You approve the plan and the merge. The Bash check is a guard
+rail rather than a sandbox, so use a container or VM for code you don't trust. See
+<a href="#safety-guardrails">Safety guardrails</a>.
+</details>
+
+<details>
+<summary><b>Can I try it without an API key?</b></summary>
+<br>
+Yes. <code>make demo</code> runs a simulated crew with demo data, so you can click through the
+whole flow for free.
+</details>
+
+<details>
+<summary><b>Does it need GitHub?</b></summary>
+<br>
+No. Without a GitHub remote, CowCrew skips CI and squash-merges locally. With
+<code>gh</code> logged in, it pushes, opens the PR and watches GitHub Actions.
+</details>
+
+## Contributing
+
+Issues, ideas and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), and
+report security problems privately as described in [SECURITY.md](SECURITY.md). Share what you
+built in [Discussions](https://github.com/cowdex/cowcrew/discussions).
+
+<p align="center">
+  <a href="https://star-history.com/#cowdex/cowcrew&Date">
+    <img src="https://api.star-history.com/svg?repos=cowdex/cowcrew&type=Date" alt="Star history of CowCrew" width="600">
+  </a>
+</p>
+
 ## Credits
 
 Third-party notices are in [NOTICE](NOTICE). The interface uses
@@ -298,5 +382,5 @@ License).
 <br>
 <p align="center">
   <img src="frontend/public/cowcrew-logo.png" alt="CowCrew logo" width="64"><br>
-  <sub><b>CowCrew</b> · AI Software Factory</sub>
+  <sub><b>CowCrew</b> · AI Software Factory · <a href="https://github.com/cowdex/cowcrew/stargazers">⭐ Star it on GitHub</a></sub>
 </p>

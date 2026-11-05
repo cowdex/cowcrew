@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/cowdex/cowcrew/discussions
+    about: Ask a question or share what you built with CowCrew.

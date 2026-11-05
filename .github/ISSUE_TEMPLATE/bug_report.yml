@@ -1,0 +1,21 @@
+name: Bug report
+description: Something in CowCrew doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: The live log lines or a screenshot of the dashboard. Remove any secrets first.
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python and Node versions, and whether you use simulate mode, a Claude subscription or an API key.
