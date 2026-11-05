@@ -36,10 +36,14 @@ function LimitRow({ l, now }: { l: PlanLimit; now: number }) {
         <span style={{ fontSize: 15, fontWeight: 600 }}>{l.label}</span>
         <span style={{ fontSize: 13, color: '#74717A' }}>{l.status === 'rejected' ? 'Limit reached · ' : ''}{resetText(l.resets_at, now)}</span>
       </div>
-      <div role="progressbar" aria-label={`${l.label} usage`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} style={{ height: 10, borderRadius: 5, background: '#EFEEF1', overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 5, background: color, transition: 'width .4s' }} />
-      </div>
-      <span style={{ fontSize: 14, color: '#45424D', minWidth: 64, textAlign: 'right' }}>{l.used_pct == null ? '—' : `${Math.round(pct)}% used`}</span>
+      {l.used_pct == null ? (
+        <span style={{ fontSize: 13, color: '#74717A' }}>{l.status === 'rejected' ? 'Limit reached.' : l.status === 'allowed_warning' ? 'Close to the limit.' : 'Within your limit.'} Claude didn’t share the exact percentage this time.</span>
+      ) : (
+        <div role="progressbar" aria-label={`${l.label} usage`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} style={{ height: 10, borderRadius: 5, background: '#EFEEF1', overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', borderRadius: 5, background: color, transition: 'width .4s' }} />
+        </div>
+      )}
+      <span style={{ fontSize: 14, color: '#45424D', minWidth: 64, textAlign: 'right' }}>{l.used_pct == null ? '' : `${Math.round(pct)}% used`}</span>
     </div>
   );
 }

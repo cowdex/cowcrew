@@ -163,13 +163,13 @@ async def probe(db: Database) -> bool:
         yield {"type": "user", "message": {"role": "user", "content": "Reply with: OK"},
                "parent_tool_use_id": None, "session_id": ""}
 
-    got = False
+    got = False  # True only when Claude reported a percentage, not just a status
     options = ClaudeAgentOptions(model="haiku", tools=[], allowed_tools=[], max_turns=1,
                                  setting_sources=[], permission_mode="default")
     async for message in query(prompt=prompt(), options=options):
         if isinstance(message, RateLimitEvent):
             record(db, message.rate_limit_info.raw, source="refresh")
-            got = True
+            got = got or message.rate_limit_info.utilization is not None
     return got
 
 

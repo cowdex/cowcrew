@@ -279,7 +279,9 @@ async def claude_usage_refresh(state: State) -> ClaudeUsage:
             raise HTTPException(502, f"Couldn't reach Claude: {exc}") from exc
         if not got:
             raise HTTPException(
-                502, "Claude answered but didn't report usage this time. Try again in a minute.")
+                502, "Claude confirmed your session but only shares percentages with Claude Code "
+                     "(or when you're close to a limit). Use Claude Code once with the connection "
+                     "on to fill the bars.")
     return limits.usage(state.db, limits.statusline_installed(state.config.home))
 
 
