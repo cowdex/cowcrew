@@ -71,6 +71,18 @@ This proves the guard works before you trust the crew with anything.
 
 **What it shows:** agents can't push, can't touch CI config, and every attempt is visible to you.
 
+## Quick test: delete a link (5–10 min)
+
+The smallest real run, to check that everything works after an update. Paste this as the spec:
+
+```
+Let users delete a short link. Add DELETE /links/{code}: it returns 204 and removes the link,
+so following /{code} afterwards returns 404. Deleting a code that doesn't exist returns 404.
+```
+
+Expect one or two questions (answer briefly), a plan of one task, one engineer ⇄ tester loop,
+and a merged change with a few new tests.
+
 ## Run 1: Warm-up, click stats (20–40 min)
 
 **Title:** `Click stats`
