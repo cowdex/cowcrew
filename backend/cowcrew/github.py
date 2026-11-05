@@ -53,7 +53,8 @@ class CIProvider(Protocol):
     def check(self, t: Target, head_sha: str) -> CheckResult: ...
     def failed_log(self, t: Target, run_id: str) -> str: ...
     def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool,
-                 head_sha: str) -> str: ...
+                 head_sha: str, admin: bool = False) -> str: ...
+    def merge_blockers(self, t: Target, number: int) -> str: ...
 
 
 def _gh(cwd: Path | None, *args: str) -> str:
@@ -147,14 +148,28 @@ class GhCli:
         return _gh(t.cwd, "run", "view", run_id, "-R", t.repo, "--log-failed")[-LOG_LIMIT:]
 
     def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool,
-                 head_sha: str) -> str:
-        """Squash-merge the PR only if its head is still the commit CowCrew verified."""
+                 head_sha: str, admin: bool = False) -> str:
+        """Squash-merge the PR only if its head is still the commit CowCrew verified.
+
+        `admin` bypasses branch protection (the repository admin's own decision)."""
         assert t.repo
         args = ["pr", "merge", str(number), "-R", t.repo, "--squash", "--subject", subject,
                 "--match-head-commit", head_sha]
-        _gh(None, *args, *(["--delete-branch"] if delete_branch else []))
+        _gh(None, *args, *(["--delete-branch"] if delete_branch else []),
+            *(["--admin"] if admin else []))
         return _gh(None, "pr", "view", str(number), "-R", t.repo, "--json", "mergeCommit",
                    "-q", ".mergeCommit.oid")
+
+    def merge_blockers(self, t: Target, number: int) -> str:
+        """Plain-language reason GitHub won't merge the PR yet ("" when unknown)."""
+        assert t.repo
+        try:
+            raw = _gh(None, "pr", "view", str(number), "-R", t.repo, "--json",
+                      "mergeStateStatus,reviewDecision,statusCheckRollup")
+            info = json.loads(raw)
+        except (GitHubError, ValueError):
+            return ""
+        return describe_blockers(info)
 
 
 SIM_LOG = """\
@@ -170,6 +185,30 @@ tests/unit/test_checkout.py:58: AssertionError
 FAILED tests/unit/test_checkout.py::test_checkout_total_is_stable - AssertionError
 ==================== 1 failed, 211 passed in 41.27s ====================
 Error: Process completed with exit code 1."""
+
+
+def describe_blockers(info: dict[str, Any]) -> str:
+    """Turn `gh pr view --json mergeStateStatus,reviewDecision,statusCheckRollup` into words."""
+    reasons: list[str] = []
+    if info.get("reviewDecision") == "REVIEW_REQUIRED":
+        reasons.append("the branch rules require an approving review, and GitHub doesn't let "
+                       "you approve your own pull request")
+    elif info.get("reviewDecision") == "CHANGES_REQUESTED":
+        reasons.append("a reviewer requested changes")
+    pending = [c.get("name") or c.get("context") or "check"
+               for c in info.get("statusCheckRollup") or []
+               if (c.get("status") or c.get("state")) in {"QUEUED", "IN_PROGRESS", "PENDING",
+                                                          "EXPECTED", "WAITING"}]
+    if pending:
+        reasons.append(f"required checks are still running ({', '.join(pending[:3])})")
+    state = info.get("mergeStateStatus")
+    if state == "BEHIND":
+        reasons.append("the branch rules require it to be up to date with the base branch")
+    elif state == "DIRTY":
+        reasons.append("it has merge conflicts with the base branch")
+    elif state == "BLOCKED" and not reasons:
+        reasons.append("a branch protection rule blocks it")
+    return "; ".join(reasons)
 
 
 class SimulatedCI:
@@ -212,5 +251,8 @@ class SimulatedCI:
         return SIM_LOG
 
     def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool,
-                 head_sha: str) -> str:
+                 head_sha: str, admin: bool = False) -> str:
         return f"{abs(hash((t.feature_id, subject))):040x}"[:40]
+
+    def merge_blockers(self, t: Target, number: int) -> str:
+        return ""

@@ -398,6 +398,7 @@ class MergeBody(_Body):
     commit_message: str = Field(min_length=1, max_length=2_000)
     delete_branch: bool = False
     follow_up_nits: bool = False
+    admin: bool = False  # bypass GitHub branch protection (repository admins only)
 
 
 class MessageBody(_Body):

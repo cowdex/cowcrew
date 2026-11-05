@@ -33,6 +33,7 @@ function MergeView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureD
   const base = projects?.find((p) => p.id === f.project_id)?.default_branch ?? 'main';
   const [message, setMessage] = useState(() => defaultMessage(d));
   const [deleteBranch, setDeleteBranch] = useState(true);
+  const [admin, setAdmin] = useState(false);
   const [followUp, setFollowUp] = useState(false);
   const [sendBack, setSendBack] = useState(false);
   const [note, setNote] = useState('');
@@ -48,7 +49,7 @@ function MergeView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureD
   const chip = merged ? <Chip kind="done" lg>Merged</Chip> : ready ? <Chip kind="wait" lg>Ready to merge</Chip> : <Chip kind="pend" lg>Not ready yet</Chip>;
 
   const doMerge = async () => {
-    const ok = await run('merge', () => api.merge(f.id, { commit_message: message.trim(), delete_branch: deleteBranch, follow_up_nits: followUp && nits.length > 0 }));
+    const ok = await run('merge', () => api.merge(f.id, { commit_message: message.trim(), delete_branch: deleteBranch, follow_up_nits: followUp && nits.length > 0, admin }));
     if (ok) toast.success(`Merged into ${base}.`);
   };
 
@@ -164,6 +165,14 @@ function MergeView({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureD
                 <input type="checkbox" checked={deleteBranch} onChange={(e) => setDeleteBranch(e.target.checked)} disabled={!ready} />
                 Delete branch and worktree after merge
               </label>
+              {f.pr_number != null && (
+                <label className="check">
+                  <input type="checkbox" checked={admin} onChange={(e) => setAdmin(e.target.checked)} disabled={!ready} />
+                  <span>
+                    Merge as admin <span style={{ color: '#74717A' }}>· bypass GitHub branch rules (required reviews or checks)</span>
+                  </span>
+                </label>
+              )}
               <button type="button" className="btn btn-primary btn-lg" disabled={!ready || !message.trim() || busy !== null} onClick={doMerge}>
                 {busy === 'merge' ? 'Merging…' : 'Squash & merge'}
               </button>

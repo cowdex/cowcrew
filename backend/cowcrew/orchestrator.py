@@ -767,10 +767,17 @@ class Orchestrator:
             try:
                 sha = await asyncio.to_thread(self.ci.merge_pr, target, row["pr_number"],
                                               body.commit_message, body.delete_branch,
-                                              verified)
+                                              verified, body.admin)
             except GitHubError as exc:
+                if "match-head-commit" in str(exc) or "head branch was modified" in str(exc):
+                    raise TransitionError(
+                        "The pull request changed on GitHub after review; "
+                        "it needs another review before merging") from exc
+                why = await asyncio.to_thread(self.ci.merge_blockers, target, row["pr_number"])
                 raise TransitionError(
-                    f"GitHub refused the merge (the PR head may have changed): {exc}") from exc
+                    f"GitHub won't merge yet: {why or 'its branch rules are not met'}. "
+                    "Approve or wait on GitHub, or tick “Merge as admin” to bypass the rules "
+                    "(only if you're a repository admin).") from exc
             if body.delete_branch and worktree:
                 await asyncio.to_thread(gitops.remove_worktree, repo, worktree, row["branch"])
         elif worktree:

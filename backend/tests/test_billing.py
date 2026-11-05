@@ -84,3 +84,27 @@ def test_gh_merge_is_pinned_to_the_verified_commit(monkeypatch) -> None:
     merge = calls[0]
     assert merge[:2] == ("pr", "merge")
     assert merge[merge.index("--match-head-commit") + 1] == "deadbeef"
+
+
+def test_merge_blockers_are_explained() -> None:
+    from cowcrew.github import describe_blockers
+
+    assert "approving review" in describe_blockers(
+        {"reviewDecision": "REVIEW_REQUIRED", "mergeStateStatus": "BLOCKED"})
+    assert "still running (test)" in describe_blockers(
+        {"statusCheckRollup": [{"name": "test", "status": "IN_PROGRESS"}],
+         "mergeStateStatus": "BLOCKED"})
+    assert "up to date" in describe_blockers({"mergeStateStatus": "BEHIND"})
+    blocked = describe_blockers({"mergeStateStatus": "BLOCKED"})
+    assert blocked == "a branch protection rule blocks it"
+
+
+def test_admin_merge_passes_admin_flag(monkeypatch) -> None:
+    from cowcrew import github
+
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(github, "_gh", lambda cwd, *args: calls.append(args) or "abc")
+    target = github.Target(feature_id=1, repo="me/orbit", cwd=None, branch="feat/x",
+                           base="main")
+    github.GhCli().merge_pr(target, 7, "feat: x", False, "deadbeef", admin=True)
+    assert "--admin" in calls[0] and "--match-head-commit" in calls[0]
