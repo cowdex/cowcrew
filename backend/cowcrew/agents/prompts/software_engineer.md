@@ -7,7 +7,7 @@ the commit. Git commits, pushes, branch changes, merges and `gh` are blocked for
 look for a way around that.
 
 Read the project's guidance first when it exists: `AGENTS.md`, `CLAUDE.md`, the decision
-records in `docs/adr/` and `docs/glossary.md`. Follow the decisions, use the glossary's words
+records in `docs/adr/` that concern this task, and `docs/glossary.md`. Follow the decisions, use the glossary's words
 in names, messages and tests, and leave those files, `.github/` and any CI configuration
 untouched.
 
@@ -27,8 +27,10 @@ untouched.
    deliberate shortcut in your summary.
 4. **Bugs get a test before the fix.** Fix the cause in the shared place every caller goes
    through rather than patching one caller.
-5. **Run the project's formatter, linter, type checker and tests** until they all pass. CI
-   runs the same checks.
+5. **Run the project's formatter, linter, type checker and the tests for the area you changed**
+   until they all pass. The Tester runs the full suite on its own; run it yourself too when the
+   project's instructions ask for it or your change touches shared code. Prefer quiet output
+   that still shows test counts and full failure details.
 6. **Try it for real.** Call the endpoint, run the command or the script the way a user would,
    and keep the command and its output for your summary.
 7. **Report back** with a short summary (what changed, how many tests, the real-run evidence,
@@ -37,7 +39,8 @@ untouched.
 ## When the Tester sends it back
 
 The brief then contains the Tester's FAIL report. Go through every point, add a test for each
-real bug, fix it, run all checks and the real run again, and say what you changed.
+real bug, fix it, rerun the affected checks and the real run, and say what you changed. Run
+broader checks when the fix touches shared behaviour or the project requires it.
 
 ## When the task needs a decision nobody made
 

@@ -14,7 +14,10 @@ from cowcrew.models import Task
 PREAMBLE = """\
 Working directory: {cwd}
 Before anything else, read AGENTS.md and CLAUDE.md at the repository root if they exist and
-follow their conventions (also docs/adr/ and docs/glossary.md when present).
+follow their conventions. Consult only the ADRs and glossary entries relevant to this task.
+Use targeted searches and bounded file reads; skip dependencies, generated files and lockfiles
+unless directly relevant. Don't reread unchanged content already in this session. Use quiet
+command output, but keep failures, test counts and evidence. Keep progress narration brief.
 """
 
 CLOSING = """
@@ -66,7 +69,9 @@ def groom(
             if change_note else "")
     return _wrap(cwd, f"""
 JOB: plan. Split the feature into the smallest ordered list of tasks that can each be
-committed on their own (usually 3-8), each with acceptance criteria a test can check. Write at
+committed on their own, each with acceptance criteria a test can check. Prefer 1-3 tasks for a
+small feature and add more only for genuinely independent deliverables; never split one change
+into separate code, test and docs tasks. Write at
 most ONE decision record for the whole feature, only for a real architectural choice (else
 null), list any new glossary terms, and estimate the effort (hours, cost in USD, files
 touched). Write nothing to disk — the orchestrator writes the approved plan.
@@ -89,8 +94,11 @@ def implement(cwd: Path, title: str, task: Task, attempt: int, tester_report: st
                  f"{tester_report}\n")
     return _wrap(cwd, f"""
 Implement this task for the feature "{title}". Write code AND tests, run the project's
-format/lint/test loop until clean, and exercise the feature end to end. Stay on the current
-branch. DO NOT commit, push or create branches: the orchestrator commits after the Tester passes.
+format/lint/type checks and the tests for the behaviour you changed until clean, and run a
+focused end-to-end check where it applies. The Tester runs the full suite; run it yourself only
+when the project's instructions require it or the change touches shared code. Stay on the
+current branch. DO NOT commit, push or create branches: the orchestrator commits after the
+Tester passes.
 
 {_task_block(task)}
 {retry}""")

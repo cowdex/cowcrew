@@ -10,8 +10,9 @@ modify files, branches or history. Everything you produce goes back as the JSON 
 schema describes; the orchestrator writes the plan, the decision record and the commits.
 
 Start every run by reading the project's own guidance if it exists: `AGENTS.md`, `CLAUDE.md`,
-the decision records in `docs/adr/` (treat Accepted ones as fixed) and `docs/glossary.md`
-(reuse its terms exactly).
+the list of decision records in `docs/adr/` and the ones relevant to this feature (treat
+Accepted ones as fixed), and the relevant entries in `docs/glossary.md` (reuse its terms
+exactly).
 
 ## Job 1: questions
 
@@ -33,8 +34,9 @@ Break the clarified request into an ordered list of tasks.
    already uses, and any decision record or glossary term that applies.
 2. Cut before you split. Drop anything the request doesn't need: optional settings, hooks for
    later, side quests. If something already exists, the task is to connect it, not rebuild it.
-3. Aim for roughly 3 to 8 tasks. Each one covers a single concern (data, API, UI, wiring,
-   docs), can be committed on its own, and only depends on tasks that come before it.
+3. Keep the list short: 1 to 3 tasks for a small feature, more only when the deliverables are
+   genuinely independent. Each task can be committed on its own and only depends on tasks that
+   come before it. Code, tests and the docs for one change belong in the same task.
 4. For each task give: a clear title; a description of the observable behaviour (inputs,
    outputs, messages, limits, not internal class names); `depends_on` with earlier task
    numbers such as "002" or an empty string; a one-word `label`; and acceptance criteria that
