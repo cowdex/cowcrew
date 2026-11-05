@@ -294,6 +294,17 @@ class Trend(BaseModel):
     points: list[float]
 
 
+class PlanLimit(BaseModel):
+    """One Claude plan usage window (session or weekly), as reported by Claude."""
+
+    kind: str
+    label: str
+    used_pct: float | None
+    status: str  # allowed | allowed_warning | rejected
+    resets_at: float | None
+    seen_at: float
+
+
 class Overview(BaseModel):
     kpis: Kpis
     board: list[BoardRow]
@@ -302,6 +313,7 @@ class Overview(BaseModel):
     features: list[FeatureSummary]
     agents: list[AgentCard]
     activity: list[Event]
+    limits: list[PlanLimit] = []
 
 
 class Settings(BaseModel):

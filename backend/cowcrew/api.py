@@ -9,7 +9,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from cowcrew import __version__, gitops
+from cowcrew import __version__, gitops, limits
 from cowcrew.agents.runner import BaseRunner
 from cowcrew.catalog import ModelCatalog, catalog
 from cowcrew.db import Database, now_iso
@@ -112,6 +112,7 @@ def overview(state: State, project_id: int | None = None) -> Overview:
         state.db, project_id, state.settings.budget_usd_week, state.settings.models,
         list(state.runner.active.values()), state.runner.context_pct,
         billing=state.settings.billing, budget_tokens=state.settings.budget_tokens_week)
+    ov.limits = limits.read(state.db)
     plan = PLANS.get(state.settings.plan or "")
     if state.settings.billing == "subscription" and plan:
         api_usd = ov.spend.total_usd

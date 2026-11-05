@@ -20,6 +20,7 @@ from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from cowcrew import limits
 from cowcrew.agents import simulation
 from cowcrew.db import Database
 from cowcrew.events import EventBus
@@ -273,6 +274,7 @@ class AgentRunner(BaseRunner):
         from claude_agent_sdk import (
             AssistantMessage,
             ClaudeSDKError,
+            RateLimitEvent,
             ResultMessage,
             TextBlock,
             ToolUseBlock,
@@ -297,6 +299,8 @@ class AgentRunner(BaseRunner):
                     rec.usage(message.usage)
                 elif isinstance(message, ResultMessage):
                     result = message
+                elif isinstance(message, RateLimitEvent):
+                    limits.record(self.db, message.rate_limit_info.raw)
         except ClaudeSDKError as exc:
             raise AgentError(f"Agent SDK error: {exc}") from exc
         if result is None:
@@ -338,4 +342,6 @@ class SimulatedRunner(BaseRunner):
         cost = simulation.cost_for(job.agent, self.rng)
         rec.result(cost, {"input_tokens": tokens_in, "output_tokens": tokens_in // 9},
                    num_turns=len(script) + 1)
+        if self.settings.billing == "subscription":
+            limits.simulate(self.db)
         return job.output.model_validate(output)

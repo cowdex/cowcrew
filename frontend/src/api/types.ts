@@ -203,6 +203,16 @@ export interface Overview {
   features: FeatureSummary[];
   agents: AgentCard[];
   activity: Event[];
+  limits?: PlanLimit[];
+}
+
+export interface PlanLimit {
+  kind: string;
+  label: string;
+  used_pct: number | null;
+  status: 'allowed' | 'allowed_warning' | 'rejected' | string;
+  resets_at: number | null;
+  seen_at: number;
 }
 
 export type Billing = 'api' | 'subscription';

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { Event, Overview, StageState } from '../api/types';
+import type { Event, Overview, PlanLimit, StageState } from '../api/types';
 import { ACTIVITY_PATHS, IconPlus } from '../components/icons';
 import { Chip, Dot, EmptyCard, Loading, StageBar } from '../components/ui';
 import { compactNum, duration, money, moneyShort, numberWord, plural, relTime, usage } from '../lib/format';
@@ -320,6 +320,47 @@ function summarize(cells: StageState[]): string {
     .join(', ');
 }
 
+function resetsIn(ts: number | null): string {
+  if (!ts) return '';
+  const s = Math.max(0, Math.round(ts - Date.now() / 1000));
+  if (s < 3600) return `resets in ${Math.max(1, Math.round(s / 60))} min`;
+  if (s < 86400) return `resets in ${Math.round(s / 3600)} h`;
+  return `resets ${new Date(ts * 1000).toLocaleDateString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`;
+}
+
+function PlanLimits({ limits }: { limits: PlanLimit[] }) {
+  const seen = limits.length ? Math.max(...limits.map((l) => l.seen_at)) : 0;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
+      <span className="label">Claude plan limits</span>
+      {limits.length === 0 && <span style={{ fontSize: 13, color: '#45424D' }}>Claude reports your session and weekly usage here after the next agent run.</span>}
+      {limits.map((l) => {
+        const pct = l.used_pct ?? 0;
+        const color = l.status === 'rejected' || pct >= 100 ? '#E24329' : l.status === 'allowed_warning' || pct >= 80 ? '#FCA326' : '#7759C2';
+        return (
+          <div key={l.kind} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+              <span>{l.label}</span>
+              <span className="mono" style={{ color: l.status === 'rejected' ? '#E24329' : '#171321' }}>
+                {l.used_pct == null ? '—' : `${Math.round(pct)}%`}
+              </span>
+            </div>
+            <div role="progressbar" aria-label={l.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} style={{ height: 6, borderRadius: 3, background: '#EFEEF1', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: color }} />
+            </div>
+            <span style={{ fontSize: 12, color: '#74717A' }}>{l.status === 'rejected' ? 'Limit reached · ' : ''}{resetsIn(l.resets_at)}</span>
+          </div>
+        );
+      })}
+      {limits.length > 0 && (
+        <span style={{ fontSize: 12, color: '#74717A' }}>
+          Reported by Claude {((r) => (r === 'now' ? 'just now' : `${r} ago`))(relTime(new Date(seen * 1000).toISOString()))}. Updates whenever an agent runs; includes your other Claude use.
+        </span>
+      )}
+    </div>
+  );
+}
+
 const MODEL_COLORS = ['#5943B6', '#A989F5', '#FC6D26', '#FCA326', '#7759C2', '#E24329'];
 
 function Spend({ o }: { o: Overview }) {
@@ -375,6 +416,7 @@ function Spend({ o }: { o: Overview }) {
           <span style={{ fontSize: 20, fontWeight: 600, color: '#171321' }}>{Math.round(s.budget_used_pct)}% used</span>
         </div>
       </div>
+      {tk && <PlanLimits limits={o.limits ?? []} />}
       {tk && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
           <span className="label">Real cost on your plan</span>

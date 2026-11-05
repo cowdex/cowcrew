@@ -237,6 +237,8 @@ Blockers and a red CI run fixed by On-Call.
 - **Real cost on a Claude plan.** Pick Pro, Max or Ultra in Settings and the Overview shows
   what this week's runs really cost you as a share of the plan (about $12 of API-priced use per
   $1 of monthly price, an estimate from community measurements).
+- **Your Claude plan limits, live.** On a Claude login, the Overview shows the same session (5h)
+  and weekly usage bars as the Claude apps, as Claude reports them to the agents, with reset times.
 - **Model dropdowns.** Each agent's model is picked from the current Claude lineup, or the live
   list from the Anthropic API when you use an API key.
 - **macOS Keychain login.** A Claude Code login on a Mac is found without extra setup.
