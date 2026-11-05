@@ -173,7 +173,7 @@ class ToolPolicy:
 
     def check_bash(self, command: str) -> Decision:
         for pattern in PIPE_TO_SHELL:
-            if pattern.search(command):
+            if pattern.search(command) and not _downloads_only_loopback(command):
                 return _deny("piping a download into an interpreter is not allowed")
         cwd = self.root
         # Separators and redirects only count outside literal strings, so test data like
@@ -283,10 +283,68 @@ class ToolPolicy:
             path = self._resolve(prefix, cwd)
             if recursive and path == self.root:
                 return _deny("rm -r of the whole worktree is not allowed")
-            decision = self.check_write(prefix, cwd=cwd, via_bash=True, allow_tmp=False)
+            # Scratch files in /tmp follow the agent's normal /tmp rule (never /tmp itself, and
+            # never a sibling of the worktree, such as another checkout next to it).
+            scratch = (self._in_tmp(path) and path not in self._tmp_roots
+                       and not _is_within(path, self.root.parent))
+            decision = self.check_write(prefix, cwd=cwd, via_bash=True, allow_tmp=scratch)
             if not decision.allowed:
                 return _deny(f"rm outside the agent's write scope: {target} ({decision.reason})")
         return ALLOW
+
+
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"})  # noqa: S104
+DOWNLOADERS = frozenset({"curl", "wget", "http", "https", "xh"})
+# Options whose next argument is data, a header or a file, never the URL being fetched.
+VALUE_FLAGS = frozenset({
+    "-d", "--data", "--data-raw", "--data-binary", "--data-urlencode", "--json", "-H",
+    "--header", "-F", "--form", "-u", "--user", "-X", "--request", "-o", "--output", "-w",
+    "--write-out", "-A", "--user-agent", "-e", "--referer", "-b", "--cookie", "-c",
+    "--cookie-jar", "-m", "--max-time", "--connect-timeout", "-T", "--upload-file", "-O",
+    "--output-document", "--header=", "--post-data", "--body-data",
+})
+
+
+def _host(url: str) -> str | None:
+    """The host a URL really points at (user@host tricks included)."""
+    rest = re.sub(r"^[a-z][a-z0-9+.-]*://", "", url, flags=re.IGNORECASE)
+    authority = re.split(r"[/?#]", rest, maxsplit=1)[0].rsplit("@", 1)[-1]
+    if authority.startswith("["):
+        return authority.split("]", 1)[0].lower() + "]"
+    host = authority.split(":", 1)[0].lower()
+    return host or None
+
+
+def _downloads_only_loopback(command: str) -> bool:
+    """True when every curl/wget in the command fetches from this machine (an app the agent just
+    started), so piping its JSON into python/node is a local test, not running remote code."""
+    try:
+        tokens = shlex.split(_mask_literals_keep(command), posix=True)
+    except ValueError:
+        return False
+    hosts: list[str] = []
+    i, in_dl = 0, False
+    while i < len(tokens):
+        tok = tokens[i]
+        base = tok.rsplit("/", 1)[-1]
+        if tok in {"|", "||", "&&", ";", "&"} or tok.endswith(("|", ";")):
+            in_dl = False
+        elif base in DOWNLOADERS:
+            in_dl = True
+        elif in_dl:
+            if tok in VALUE_FLAGS:
+                i += 1  # skip its value
+            elif not tok.startswith("-"):
+                host = _host(tok)
+                if host:
+                    hosts.append(host)
+        i += 1
+    return bool(hosts) and all(h in LOOPBACK_HOSTS or h.startswith("127.") for h in hosts)
+
+
+def _mask_literals_keep(command: str) -> str:
+    """Put spaces around pipes and separators so shlex sees them as their own tokens."""
+    return re.sub(r"(\|\||&&|\||;)", r" \1 ", command)
 
 
 HEREDOC_QUOTED = re.compile(r"<<-?\s*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1")
