@@ -234,6 +234,11 @@ Blockers and a red CI run fixed by On-Call.
 - **Tokens on a subscription, dollars on the API.** On a Claude Pro or Max plan, the
   Overview, the agent panels and the weekly budget show tokens. With an API key they show
   dollars. Force either with `COWCREW_BILLING`.
+- **Real cost on a Claude plan.** Pick Pro, Max or Ultra in Settings and the Overview shows
+  what this week's runs really cost you as a share of the plan (about $12 of API-priced use per
+  $1 of monthly price, an estimate from community measurements).
+- **Model dropdowns.** Each agent's model is picked from the current Claude lineup, or the live
+  list from the Anthropic API when you use an API key.
 - **macOS Keychain login.** A Claude Code login on a Mac is found without extra setup.
 - **Safer unattended runs.**
   - Merges are pinned to the reviewed commit: locally CowCrew checks the branch head, and on

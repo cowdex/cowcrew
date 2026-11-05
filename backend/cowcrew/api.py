@@ -31,6 +31,7 @@ from cowcrew.models import (
 )
 from cowcrew.orchestrator import Orchestrator
 from cowcrew.overview import build_overview
+from cowcrew.plans import PLANS
 from cowcrew.settings import Config, SettingsStore
 from cowcrew.store import detail_of, project_of, summary_of
 
@@ -107,10 +108,18 @@ async def delete_project(project_id: int, state: State) -> dict[str, bool]:
 
 @router.get("/overview")
 def overview(state: State, project_id: int | None = None) -> Overview:
-    return build_overview(
+    ov = build_overview(
         state.db, project_id, state.settings.budget_usd_week, state.settings.models,
         list(state.runner.active.values()), state.runner.context_pct,
         billing=state.settings.billing, budget_tokens=state.settings.budget_tokens_week)
+    plan = PLANS.get(state.settings.plan or "")
+    if state.settings.billing == "subscription" and plan:
+        api_usd = ov.spend.total_usd
+        ov.spend.plan = plan.name
+        ov.spend.plan_cost_usd = round(plan.real_cost(api_usd), 2)
+        ov.spend.plan_week_usd = round(plan.price_week, 2)
+        ov.spend.plan_used_pct = round(plan.used_pct(api_usd), 1)
+    return ov
 
 
 # ----------------------------------------------------------------------------- features

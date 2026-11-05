@@ -172,6 +172,7 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
   const [budget, setBudget] = useState(String(storedBudget));
   const [attempts, setAttempts] = useState(String(settings.max_attempts));
   const [models, setModels] = useState<Record<WorkerAgentKey, string>>(settings.models);
+  const [plan, setPlan] = useState<string>(settings.plan ?? '');
   const [busy, setBusy] = useState(false);
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -188,13 +189,13 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
   useEffect(() => {
     void loadModels();
   }, []);
-  const dirty = Number(budget) !== storedBudget || Number(attempts) !== settings.max_attempts || WORKER_AGENTS.some((a) => models[a] !== settings.models[a]);
+  const dirty = Number(budget) !== storedBudget || Number(attempts) !== settings.max_attempts || WORKER_AGENTS.some((a) => models[a] !== settings.models[a]) || plan !== (settings.plan ?? '');
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const s = await api.saveSettings({ ...(tk ? { budget_tokens_week: Number(budget) } : { budget_usd_week: Number(budget) }), max_attempts: Number(attempts), models });
+      const s = await api.saveSettings({ ...(tk ? { budget_tokens_week: Number(budget) } : { budget_usd_week: Number(budget) }), max_attempts: Number(attempts), models, ...(plan ? { plan: plan as 'pro' | 'max' | 'ultra' } : {}) });
       onSaved(s);
       toast.success('Settings saved.');
     } catch {
@@ -219,6 +220,20 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
             {tk ? 'You’re on a Claude plan: usage is counted in tokens. Runs pause when the week reaches this.' : 'Runs pause when agent spend this week reaches this.'}
           </span>
         </label>
+        {tk && (
+          <label className="field">
+            Your Claude plan
+            <select className="input" value={plan} onChange={(e) => setPlan(e.target.value)}>
+              <option value="" disabled>
+                Choose your plan
+              </option>
+              <option value="pro">Pro · $20 / month</option>
+              <option value="max">Max · $100 / month</option>
+              <option value="ultra">Ultra · $200 / month</option>
+            </select>
+            <span style={{ fontWeight: 400, color: '#74717A' }}>Used to estimate what each run really costs you on the plan.</span>
+          </label>
+        )}
         <label className="field">
           Max attempts per task
           <input className="input mono" type="number" min={1} max={10} step={1} value={attempts} onChange={(e) => setAttempts(e.target.value)} required />
@@ -258,6 +273,7 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
             setBudget(String(storedBudget));
             setAttempts(String(settings.max_attempts));
             setModels(settings.models);
+            setPlan(settings.plan ?? '');
           }}
         >
           Reset

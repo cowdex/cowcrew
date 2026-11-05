@@ -375,6 +375,25 @@ function Spend({ o }: { o: Overview }) {
           <span style={{ fontSize: 20, fontWeight: 600, color: '#171321' }}>{Math.round(s.budget_used_pct)}% used</span>
         </div>
       </div>
+      {tk && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
+          <span className="label">Real cost on your plan</span>
+          {s.plan && s.plan_cost_usd != null ? (
+            <>
+              <span style={{ fontSize: 20, fontWeight: 600 }}>
+                ≈ {money(s.plan_cost_usd)} <span style={{ fontSize: 13, fontWeight: 400, color: '#74717A' }}>of {money(s.plan_week_usd ?? 0)} / week on {s.plan}</span>
+              </span>
+              <span style={{ fontSize: 12, color: '#74717A' }}>
+                {(s.plan_used_pct ?? 0).toFixed(1)}% of your weekly allowance · {money(s.total_usd)} at API prices. Estimate: a plan covers about $12 of API-priced use per $1 of monthly price.
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: 13, color: '#45424D' }}>
+              {money(s.total_usd)} at API prices this week. <Link to="/settings">Pick your plan</Link> to see what it really costs you.
+            </span>
+          )}
+        </div>
+      )}
     </section>
   );
 }

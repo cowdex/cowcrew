@@ -173,6 +173,11 @@ class SettingsStore:
         stored = self.db.get_setting("models", {}) or {}
         return {k: stored.get(k, v) for k, v in DEFAULT_MODELS.items()}
 
+    @property
+    def plan(self) -> str | None:
+        stored = self.db.get_setting("plan", None)
+        return stored if stored in {"pro", "max", "ultra"} else None
+
     def model_for(self, agent: str) -> str:
         return self.models.get(agent, "sonnet")
 
@@ -185,12 +190,15 @@ class SettingsStore:
             self.db.set_setting("max_attempts", body.max_attempts)
         if body.models is not None:
             self.db.set_setting("models", {**self.models, **body.models})
+        if body.plan is not None:
+            self.db.set_setting("plan", body.plan)
 
     def view(self) -> Settings:
         return Settings(
             budget_usd_week=self.budget_usd_week,
             budget_tokens_week=self.budget_tokens_week,
             billing=self.billing,  # type: ignore[arg-type]
+            plan=self.plan,  # type: ignore[arg-type]
             max_attempts=self.max_attempts,
             models=self.models,  # type: ignore[arg-type]
             simulate=self.config.simulate,

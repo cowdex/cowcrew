@@ -278,6 +278,11 @@ class Spend(BaseModel):
     projected_usd: float
     projected_tokens: int = 0
     budget_used_pct: float
+    # Subscription only: what this week's usage really cost, as a share of the plan (estimate).
+    plan: str | None = None
+    plan_cost_usd: float | None = None
+    plan_week_usd: float | None = None
+    plan_used_pct: float | None = None
 
 
 class Trend(BaseModel):
@@ -303,6 +308,7 @@ class Settings(BaseModel):
     budget_usd_week: float
     budget_tokens_week: int = 0
     billing: Literal["api", "subscription"] = "api"
+    plan: Literal["pro", "max", "ultra"] | None = None
     max_attempts: int
     models: dict[WorkerAgent, str]
     simulate: bool
@@ -360,6 +366,7 @@ class SettingsUpdate(_Body):
     budget_tokens_week: int | None = Field(default=None, ge=0)
     max_attempts: int | None = Field(default=None, ge=1, le=20)
     models: dict[WorkerAgent, str] | None = None
+    plan: Literal["pro", "max", "ultra"] | None = None
 
 
 # --------------------------------------------------------------------------- agent outputs

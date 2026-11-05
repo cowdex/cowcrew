@@ -187,6 +187,10 @@ export interface Overview {
     projected_usd: number;
     projected_tokens?: number;
     budget_used_pct: number;
+    plan?: string | null;
+    plan_cost_usd?: number | null;
+    plan_week_usd?: number | null;
+    plan_used_pct?: number | null;
   };
   trends: {
     key: 'lead_time' | 'loops_per_task' | 'blockers_per_pr';
@@ -220,6 +224,7 @@ export interface Settings {
   budget_usd_week: number;
   budget_tokens_week?: number;
   billing?: Billing;
+  plan?: 'pro' | 'max' | 'ultra' | null;
   max_attempts: number;
   models: Record<WorkerAgentKey, string>;
   simulate: boolean;
