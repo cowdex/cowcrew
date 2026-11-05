@@ -33,6 +33,13 @@ interface NodeInfo {
   metrics: [string, string][];
 }
 
+/** CI can report several workflow runs for one commit ("123,456"): show the first, then a count. */
+function runLabel(runId: string): string {
+  const ids = runId.split(',').map((x) => x.trim()).filter(Boolean);
+  if (ids.length === 0) return '—';
+  return ids.length === 1 ? `#${ids[0]}` : `#${ids[0]} +${ids.length - 1}`;
+}
+
 export default function LivePage() {
   const { id, detail, error, reload, setDetail } = useFeaturePage({ label: 'Live runs', to: '/live' });
   const events = useFeatureEvents(id);
@@ -143,7 +150,7 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
         key: 'onc', name: 'On-Call Engineer', model: modelOf('oncall_engineer'), state: pauseIt(onc),
         sub: st[3] === 'fail' ? 'CI red · diagnosing' : st[3] === 'run' ? 'watching CI' : st[3] === 'done' ? 'CI green' : 'CI · later',
         text: text('oncall_engineer', 'Will watch GitHub Actions after the push and fix anything red.'),
-        metrics: [['CI runs', String(d.ci_runs.length)], ['Failing', lastRun ? String(lastRun.jobs.filter((j) => j.conclusion === 'failure').length) : '—'], ['Last run', lastRun ? `#${lastRun.run_id}` : '—'], [spendLabel, fmtSpend(spendOf('oncall_engineer'))]],
+        metrics: [['CI runs', String(d.ci_runs.length)], ['Failing', lastRun ? String(lastRun.jobs.filter((j) => j.conclusion === 'failure').length) : '—'], ['Last run', lastRun ? runLabel(lastRun.run_id) : '—'], [spendLabel, fmtSpend(spendOf('oncall_engineer'))]],
       },
       you: {
         key: 'you', name: 'You', model: 'human', state: you,
@@ -340,11 +347,11 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
           </div>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: '#45424D' }}>{s.text}</p>
           <span className="label">Metrics</span>
-          <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
             {s.metrics.map(([k, v]) => (
-              <div key={k} style={{ border: '1px solid #E4E3E7', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div key={k} style={{ minWidth: 0, gridColumn: v.length > 9 ? '1 / -1' : undefined, border: '1px solid #E4E3E7', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <dt className="label">{k}</dt>
-                <dd style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em' }}>{v}</dd>
+                <dd title={v} style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</dd>
               </div>
             ))}
           </dl>
