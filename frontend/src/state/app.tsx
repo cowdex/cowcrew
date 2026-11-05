@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
-import { onWs, startWs } from '../api/ws';
+import { onReconnect, onWs, startWs } from '../api/ws';
 import type { Event, Overview, Project, Settings } from '../api/types';
 
 const NOTIFY_KINDS: Event['kind'][] = ['gate', 'error'];
@@ -123,12 +123,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         timer.current = window.setTimeout(() => reloadOverview(), 800);
       }
     });
+    const offRe = onReconnect(() => {
+      reloadOverview();
+      reloadProjects();
+    });
     return () => {
       off();
+      offRe();
       stop();
       window.clearTimeout(timer.current);
     };
-  }, [reloadOverview]);
+  }, [reloadOverview, reloadProjects]);
 
   const markRead = useCallback(() => {
     const max = notifications.reduce((a, e) => Math.max(a, e.id), 0);

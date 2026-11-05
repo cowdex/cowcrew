@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
-import { onWs } from '../api/ws';
+import { onReconnect, onWs } from '../api/ws';
 import type { Event, FeatureDetail, FeatureSummary } from '../api/types';
 import { useApp } from './app';
 
@@ -53,8 +53,10 @@ export function useFeatureDetail(id: number) {
         schedule();
       }
     });
+    const offRe = onReconnect(() => reload());
     return () => {
       off();
+      offRe();
       window.clearTimeout(timer.current);
     };
   }, [id, reload]);
@@ -68,19 +70,24 @@ export function useFeatureEvents(id: number, limit = 200) {
   useEffect(() => {
     let alive = true;
     setEvents(null);
-    api.events(id, { limit }, { silent: true }).then(
-      (list) => {
-        if (!alive) return;
-        setEvents((cur) => merge(list, cur ?? []));
-      },
-      () => alive && setEvents((cur) => cur ?? []),
-    );
+    const fetchPage = () =>
+      api.events(id, { limit }, { silent: true }).then(
+        (list) => {
+          if (!alive) return;
+          setEvents((cur) => merge(list, cur ?? []));
+        },
+        () => alive && setEvents((cur) => cur ?? []),
+      );
+    fetchPage();
     const off = onWs((m) => {
       if (m.type === 'event' && m.event.feature_id === id) setEvents((cur) => merge([m.event], cur ?? []));
     });
+    // events emitted while the socket was down are only reachable over REST
+    const offRe = onReconnect(fetchPage);
     return () => {
       alive = false;
       off();
+      offRe();
     };
   }, [id, limit]);
   return events;
@@ -110,8 +117,10 @@ export function useFeatures(status?: string) {
         timer.current = window.setTimeout(load, 600);
       }
     });
+    const offRe = onReconnect(load);
     return () => {
       off();
+      offRe();
       window.clearTimeout(timer.current);
     };
   }, [load]);

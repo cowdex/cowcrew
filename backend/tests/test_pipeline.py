@@ -104,3 +104,75 @@ async def test_merge_refuses_dirty_main_checkout(make_state: Callable[..., AppSt
     else:
         raise AssertionError("merge should refuse a dirty checkout")
     assert orch._row(fid)["status"] == "awaiting_merge"
+
+
+async def _to_merge_gate(state: AppState, project_id: int, title: str = "Tiny change") -> int:
+    orch = state.orchestrator
+    fid = orch.create_feature(project_id, title, "Do it.")
+    await orch.wait_idle(fid)
+    orch.answer(fid, {q["id"]: "ok" for q in state.db.all(
+        "SELECT id FROM questions WHERE feature_id = ?", (fid,))})
+    await orch.wait_idle(fid)
+    orch.approve(fid)
+    await orch.wait_idle(fid)
+    assert orch._row(fid)["status"] == "awaiting_merge", _errors(state, fid)
+    return fid
+
+
+async def test_simulated_run_with_github_repo_merges_locally(
+        make_state: Callable[..., AppState], git_repo: Path) -> None:
+    """A fake PR number must never route a simulated run to the remote merge path."""
+    state = make_state()
+    orch = state.orchestrator
+    fid = await _to_merge_gate(state, add_project(state, git_repo, github_repo="me/orbit"))
+    row = orch._row(fid)
+    assert row["pr_number"]  # the simulated CI handed out a fake PR
+    before = run_git(git_repo, "rev-parse", "HEAD")
+    await orch.merge(fid, MergeBody(commit_message="feat: tiny", delete_branch=True))
+    assert orch._row(fid)["status"] == "merged"
+    assert run_git(git_repo, "rev-parse", "HEAD") != before
+    assert run_git(git_repo, "log", "-1", "--format=%s") == "feat: tiny"
+    assert orch._row(fid)["merged_commit"] == run_git(git_repo, "rev-parse", "HEAD")
+    assert row["branch"] not in run_git(git_repo, "branch")
+    await orch.shutdown()
+
+
+async def test_ci_fix_goes_back_through_acceptance_and_review(
+        make_state: Callable[..., AppState], git_repo: Path) -> None:
+    state = make_state()
+    orch, db = state.orchestrator, state.db
+    fid = await _to_merge_gate(state, add_project(state, git_repo))
+    ci_red = db.scalar("SELECT max(id) FROM events WHERE feature_id = ? AND "
+                       "agent = 'oncall_engineer' AND message LIKE 'CI red%'", (fid,))
+    last_accept = db.scalar("SELECT max(id) FROM events WHERE feature_id = ? AND "
+                            "agent = 'product_architect' AND kind = 'verdict'", (fid,))
+    last_review = db.scalar("SELECT max(id) FROM events WHERE feature_id = ? AND "
+                            "agent = 'pr_reviewer' AND kind = 'verdict'", (fid,))
+    assert ci_red is not None
+    assert last_accept > ci_red and last_review > ci_red
+    row = orch._row(fid)
+    assert row["verified_sha"] == run_git(Path(row["worktree_path"]), "rev-parse", "HEAD")
+    await orch.shutdown()
+
+
+async def test_merge_refuses_commits_pushed_after_review(
+        make_state: Callable[..., AppState], git_repo: Path) -> None:
+    from cowcrew.orchestrator import TransitionError
+
+    state = make_state()
+    orch = state.orchestrator
+    fid = await _to_merge_gate(state, add_project(state, git_repo))
+    worktree = Path(orch._row(fid)["worktree_path"])
+    (worktree / "sneaky.py").write_text("print('unreviewed')\n")
+    run_git(worktree, "add", "sneaky.py")
+    run_git(worktree, "-c", "user.name=x", "-c", "user.email=x@x", "commit", "-m", "sneaky")
+    before = run_git(git_repo, "rev-parse", "HEAD")
+    try:
+        await orch.merge(fid, MergeBody(commit_message="x"))
+    except TransitionError as exc:
+        assert "moved after review" in str(exc)
+    else:
+        raise AssertionError("merge should refuse unreviewed commits")
+    assert orch._row(fid)["status"] == "awaiting_merge"
+    assert run_git(git_repo, "rev-parse", "HEAD") == before
+    await orch.shutdown()

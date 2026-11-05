@@ -21,6 +21,30 @@ export function dispatchWs(m: WsMessage) {
   });
 }
 
+type ReconnectListener = () => void;
+const reconnectListeners = new Set<ReconnectListener>();
+
+/**
+ * Called after the socket comes back from a drop. Messages sent while it was down are lost,
+ * so every subscriber should refetch its data from REST here.
+ */
+export function onReconnect(fn: ReconnectListener): () => void {
+  reconnectListeners.add(fn);
+  return () => {
+    reconnectListeners.delete(fn);
+  };
+}
+
+function dispatchReconnect() {
+  reconnectListeners.forEach((l) => {
+    try {
+      l();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+}
+
 /** Opens /ws with auto-reconnect (exponential backoff, max 10 s). Returns a stop function. */
 export function startWs(onConnected: (ok: boolean) => void): () => void {
   if (MOCK) {
@@ -41,6 +65,7 @@ export function startWs(onConnected: (ok: boolean) => void): () => void {
   let retry = 0;
   let timer: number | undefined;
   let closed = false;
+  let everOpened = false;
 
   const connect = () => {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -48,6 +73,8 @@ export function startWs(onConnected: (ok: boolean) => void): () => void {
     ws.onopen = () => {
       retry = 0;
       onConnected(true);
+      if (everOpened) dispatchReconnect();
+      everOpened = true;
     };
     ws.onmessage = (ev) => {
       try {

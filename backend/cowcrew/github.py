@@ -52,7 +52,8 @@ class CIProvider(Protocol):
     def ensure_pr(self, t: Target, title: str, body: str) -> tuple[int | None, str | None]: ...
     def check(self, t: Target, head_sha: str) -> CheckResult: ...
     def failed_log(self, t: Target, run_id: str) -> str: ...
-    def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool) -> str: ...
+    def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool,
+                 head_sha: str) -> str: ...
 
 
 def _gh(cwd: Path | None, *args: str) -> str:
@@ -145,9 +146,12 @@ class GhCli:
         assert t.repo
         return _gh(t.cwd, "run", "view", run_id, "-R", t.repo, "--log-failed")[-LOG_LIMIT:]
 
-    def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool) -> str:
+    def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool,
+                 head_sha: str) -> str:
+        """Squash-merge the PR only if its head is still the commit CowCrew verified."""
         assert t.repo
-        args = ["pr", "merge", str(number), "-R", t.repo, "--squash", "--subject", subject]
+        args = ["pr", "merge", str(number), "-R", t.repo, "--squash", "--subject", subject,
+                "--match-head-commit", head_sha]
         _gh(None, *args, *(["--delete-branch"] if delete_branch else []))
         return _gh(None, "pr", "view", str(number), "-R", t.repo, "--json", "mergeCommit",
                    "-q", ".mergeCommit.oid")
@@ -207,5 +211,6 @@ class SimulatedCI:
     def failed_log(self, t: Target, run_id: str) -> str:
         return SIM_LOG
 
-    def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool) -> str:
+    def merge_pr(self, t: Target, number: int, subject: str, delete_branch: bool,
+                 head_sha: str) -> str:
         return f"{abs(hash((t.feature_id, subject))):040x}"[:40]

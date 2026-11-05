@@ -56,3 +56,31 @@ def test_overview_reports_dollars_on_api(make_state: Callable[..., AppState]) ->
         spend = client.get("/api/overview").json()["spend"]
     assert spend["unit"] == "usd" and spend["total_usd"] == 3.0
     assert spend["by_model"][0]["tokens"] == 15
+
+
+def test_old_database_gains_verified_sha(tmp_path) -> None:
+    import sqlite3
+
+    from cowcrew.db import Database
+
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE features (id INTEGER PRIMARY KEY, title TEXT)")
+    conn.commit()
+    conn.close()
+    db = Database(path)
+    cols = {r["name"] for r in db.all("PRAGMA table_info(features)")}
+    assert "verified_sha" in cols
+
+
+def test_gh_merge_is_pinned_to_the_verified_commit(monkeypatch) -> None:
+    from cowcrew import github
+
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(github, "_gh", lambda cwd, *args: calls.append(args) or "abc")
+    target = github.Target(feature_id=1, repo="me/orbit", cwd=None, branch="feat/x",
+                           base="main")
+    github.GhCli().merge_pr(target, 7, "feat: x", True, "deadbeef")
+    merge = calls[0]
+    assert merge[:2] == ("pr", "merge")
+    assert merge[merge.index("--match-head-commit") + 1] == "deadbeef"

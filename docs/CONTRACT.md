@@ -53,8 +53,8 @@ grooming ─(PA writes plan)→ awaiting_plan_approval            ← GATE 1
 building  (per task: SWE → Tester → commit; FAIL retries up to max_attempts)
    → accepting (PA acceptance; REJECT → rollup task → building)
    → reviewing (PR Reviewer; Blockers → rollup task → building → reviewing)
-   → ci (push + PR + watch CI; red → On-Call → fix task → building → ci)  [skipped if no GitHub remote / no workflows]
-   → awaiting_merge                                           ← GATE 2
+   → ci (push + PR + watch CI; red → On-Call → fix task → building → accepting → reviewing → ci)  [skipped if no GitHub remote / no workflows]
+   → awaiting_merge                                           ← GATE 2  [merge is pinned to the reviewed commit (verified_sha); simulate mode always merges locally]
         ├─ merge → merged
         └─ send-back {note} → rollup task → building
 any running state ─ pause → paused (resume returns to the stored `resume_status`)
@@ -204,7 +204,7 @@ Places where the frontend relies on details the contract leaves open (the backen
 - `Diagnosis.responsible_task` is displayed as is; if it starts with a task number ("002 Wait for…") the number is highlighted.
 - An ADR body paragraph made of ≥3 parts joined by " → " is rendered as a flow diagram.
 - `Overview.features` (current project) drives the sidebar badges (Plans = awaiting_answers + awaiting_plan_approval, Merge = awaiting_merge) and the search box; CI badge = `kpis.ci_failing`.
-- The frontend sends nothing over `/ws`; it reconnects with exponential backoff (max 10 s).
+- The frontend sends nothing over `/ws`; it reconnects with exponential backoff (max 10 s) and, after a reconnect, refetches overview, lists, feature detail and events over REST, since messages sent while it was down are not replayed.
 
 ## Backend notes
 

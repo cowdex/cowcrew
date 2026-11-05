@@ -489,6 +489,9 @@ class Orchestrator:
         base = self._project(row)["default_branch"]
         diff = (await asyncio.to_thread(gitops.diff_text, cwd, base) if row["worktree_path"]
                 else "(simulated workspace: no diff available)")
+        reviewed = (await asyncio.to_thread(gitops.head_sha, cwd) if row["worktree_path"]
+                    else None)
+        self._update(fid, verified_sha=reviewed)
         prior = self.db.all("SELECT id, file, text FROM findings WHERE feature_id = ? AND "
                             "severity = 'Blocker' AND status = 'open'", (fid,))
         self._handoff(fid, REVIEWER, f"PR Reviewer starts round {round_no}")
@@ -534,7 +537,19 @@ class Orchestrator:
         self._update(fid, ci_enabled=0)
         self._enter_merge_gate(fid, "No blockers · no CI configured — ready for your review")
 
+    def _check_verified(self, fid: int) -> None:
+        """The branch head must still be the commit the reviewer saw; newer is unreviewed."""
+        row = self._row(fid)
+        if not row["worktree_path"] or not row["verified_sha"]:
+            return
+        head = gitops.head_sha(row["worktree_path"])
+        if head != row["verified_sha"]:
+            raise PipelineError(
+                f"Branch moved after review ({row['verified_sha'][:7]} → {head[:7]}); "
+                "unreviewed commits won't be merged")
+
     def _enter_merge_gate(self, fid: int, message: str) -> None:
+        self._check_verified(fid)
         self._transition(fid, "awaiting_merge", message)
         if self._row(fid)["status"] == "awaiting_merge":
             self.bus.emit(fid, "system", "gate", "Ready to merge — your review", {"gate": "merge"})
@@ -562,6 +577,10 @@ class Orchestrator:
                 self.bus.emit(fid, "system", "status", f"Opened PR #{number}", {"url": url})
         head = (await asyncio.to_thread(gitops.head_sha, target.cwd) if target.cwd
                 else f"sim-{row['ci_rounds']}")
+        if target.cwd and row["verified_sha"] and head != row["verified_sha"]:
+            raise PipelineError(
+                f"Branch moved after review ({row['verified_sha'][:7]} → {head[:7]}); "
+                "refusing to run CI on unreviewed commits")
         self.bus.emit(fid, ONCALL, "status", f"Watching CI for {head[:7]}")
         poll = (2.0 * self.config.sim_speed if self.config.simulate
                 else self.config.ci_poll_seconds)
@@ -624,7 +643,8 @@ class Orchestrator:
                        f"{out.fix_task.description}\n\nRoot cause: {out.root_cause}",
                        out.fix_task.acceptance_criteria, "ci-fix")
         self._handoff(fid, ONCALL, f"On-Call → SWE: {out.fix_task.title}")
-        self._update(fid, return_status="ci")
+        # Code changed: the fix must pass acceptance and PR review again before CI.
+        self._update(fid, return_status=None, verified_sha=None)
         if rounds > MAX_CI_ROUNDS:
             self._pause(fid, f"CI still red after {rounds} rounds", resume_to="building")
         else:
@@ -732,9 +752,25 @@ class Orchestrator:
         target = self._target(row)
         worktree = Path(row["worktree_path"]) if row["worktree_path"] else None
         repo = Path(project["repo_path"])
-        if row["pr_number"] and project["github_repo"]:
-            sha = await asyncio.to_thread(self.ci.merge_pr, target, row["pr_number"],
-                                          body.commit_message, body.delete_branch)
+        verified = row["verified_sha"]
+        if worktree and not verified:  # features that reached the gate before this field existed
+            verified = await asyncio.to_thread(gitops.head_sha, worktree)
+        if worktree and verified:
+            head = await asyncio.to_thread(gitops.head_sha, worktree)
+            if head != verified:
+                raise TransitionError(
+                    f"The branch moved after review ({verified[:7]} → {head[:7]}); "
+                    "it needs another review before merging")
+        if row["pr_number"] and project["github_repo"] and not self.config.simulate:
+            if not verified:
+                raise TransitionError("No verified commit recorded for this PR")
+            try:
+                sha = await asyncio.to_thread(self.ci.merge_pr, target, row["pr_number"],
+                                              body.commit_message, body.delete_branch,
+                                              verified)
+            except GitHubError as exc:
+                raise TransitionError(
+                    f"GitHub refused the merge (the PR head may have changed): {exc}") from exc
             if body.delete_branch and worktree:
                 await asyncio.to_thread(gitops.remove_worktree, repo, worktree, row["branch"])
         elif worktree:

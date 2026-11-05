@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS features (
     diff_stats TEXT,
     protected_touched INTEGER NOT NULL DEFAULT 0,
     merged_commit TEXT,
+    verified_sha TEXT,
     accept_rounds INTEGER NOT NULL DEFAULT 0,
     review_round INTEGER NOT NULL DEFAULT 0,
     ci_rounds INTEGER NOT NULL DEFAULT 0,
@@ -169,6 +170,13 @@ class Database:
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a database was first created."""
+        cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(features)")}
+        if "verified_sha" not in cols:
+            self._conn.execute("ALTER TABLE features ADD COLUMN verified_sha TEXT")
 
     def close(self) -> None:
         with self._lock:
