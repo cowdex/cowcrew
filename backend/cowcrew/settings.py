@@ -200,7 +200,7 @@ class SettingsStore:
             budget_tokens_week=self.budget_tokens_week,
             billing=self.billing,  # type: ignore[arg-type]
             plan=self.plan,  # type: ignore[arg-type]
-            plan_usd_per_api_usd=(PLANS[self.plan].real_cost(1.0)
+            plan_usd_per_api_usd=(PLANS[self.plan].factors()
                                   if self.plan and self.billing == "subscription" else None),
             max_attempts=self.max_attempts,
             models=self.models,  # type: ignore[arg-type]

@@ -180,11 +180,11 @@ export function useTokensMode(): boolean {
 export interface CostView {
   /** On a Claude subscription. */
   subscription: boolean;
-  /** Real dollars per API-priced dollar; null without a plan or on API billing. */
-  factor: number | null;
-  /** Money as the user pays it: plan share (≈) on a subscription with a plan, else API price. */
+  /** Real dollars per API-priced dollar as a rough [low, high] range; null without a plan. */
+  factor: [number, number] | null;
+  /** Money as the user pays it: a rough plan-share range on a subscription, else API price. */
   money: (apiUsd: number) => string;
-  /** "≈ $0.37 · 1.2M tokens" (plan) · "1.2M tokens · $19.43 at API prices" · "$19.43 · 1.2M tokens" */
+  /** "1.2M tokens · ≈ $0.30–0.46" (plan) · "1.2M tokens · $19.43 at API prices" · "$19.43 · 1.2M tokens" */
   line: (apiUsd: number, tokens: number) => string;
 }
 
@@ -193,14 +193,19 @@ export function useCost(): CostView {
   const subscription = s?.billing === 'subscription';
   const factor = subscription ? s?.plan_usd_per_api_usd ?? null : null;
   const fmt = (v: number) => (v > 0 && v < 0.01 ? '<$0.01' : money(v));
-  const toMoney = (api: number) => (factor != null ? `≈ ${fmt(api * factor)}` : fmt(api));
+  const toMoney = (api: number) => {
+    if (factor == null) return fmt(api);
+    const lo = fmt(api * factor[0]);
+    const hi = fmt(api * factor[1]);
+    return lo === hi ? `≈ ${lo}` : `≈ ${lo}–${hi.replace('$', '')}`;
+  };
   return {
     subscription,
     factor,
     money: toMoney,
     line: (api, tokens) => {
       const tk = `${compactNum(Math.round(tokens))} tokens`;
-      if (factor != null) return `${toMoney(api)} · ${tk}`;
+      if (factor != null) return `${tk} · ${toMoney(api)}`;
       if (subscription) return `${tk} · ${fmt(api)} at API prices`;
       return `${fmt(api)} · ${tk}`;
     },

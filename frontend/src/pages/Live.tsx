@@ -652,12 +652,12 @@ function SpendCard({ d }: { d: FeatureDetail }) {
         Cost of this spec
       </h2>
       <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 10px' }}>
-        <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.045em' }}>{cost.money(f.cost_usd)}</span>
-        <span style={{ fontSize: 14, color: '#45424D' }}>{compactNum(tokens)} tokens</span>
+        <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.045em' }}>{cost.subscription ? compactNum(tokens) : money(f.cost_usd)}</span>
+        <span style={{ fontSize: 14, color: '#45424D' }}>{cost.subscription ? `tokens · ${money(f.cost_usd)} at API prices` : `${compactNum(tokens)} tokens`}</span>
       </div>
       <span style={{ fontSize: 12, color: '#74717A' }}>
         {cost.factor != null
-          ? `Share of your Claude plan · ${money(f.cost_usd)} at API prices`
+          ? `Rough cost on your plan: ${cost.money(f.cost_usd)} (range from published measurements)`
           : cost.subscription
             ? `${money(f.cost_usd)} at API prices · counts against your Claude plan`
             : est != null

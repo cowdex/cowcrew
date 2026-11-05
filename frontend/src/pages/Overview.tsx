@@ -386,8 +386,8 @@ function Spend({ o }: { o: Overview }) {
       <div style={{ ...section, ...(tk ? {} : { paddingTop: 0, borderTop: 0 }) }}>
         <span className="label">CowCrew this week</span>
         <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 10px' }}>
-          <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.045em' }}>{cost.money(s.total_usd)}</span>
-          <span style={{ fontSize: 14, color: '#45424D' }}>{compactNum(s.total_tokens ?? 0)} tokens</span>
+          <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.045em' }}>{tk ? compactNum(s.total_tokens ?? 0) : money(s.total_usd)}</span>
+          <span style={{ fontSize: 14, color: '#45424D' }}>{tk ? 'tokens' : `${compactNum(s.total_tokens ?? 0)} tokens`}</span>
           {s.wow_pct != null && (
             <span className="mono" style={{ fontSize: 12, color: '#171321' }}>
               {s.wow_pct >= 0 ? '+' : '−'}
@@ -395,16 +395,28 @@ function Spend({ o }: { o: Overview }) {
             </span>
           )}
         </div>
+        {tk && (
+          <div className="kv" style={{ fontSize: 13 }}>
+            <span>Value at API prices</span>
+            <span className="mono">{money(s.total_usd)}</span>
+          </div>
+        )}
+        {tk && cost.factor != null && s.plan_cost_usd && (
+          <div className="kv" style={{ fontSize: 13 }}>
+            <span>Rough cost on {s.plan}</span>
+            <span className="mono">{cost.money(s.total_usd)}</span>
+          </div>
+        )}
         <span style={{ fontSize: 12, color: '#74717A' }}>
           {cost.factor != null
-            ? `Your share of the ${s.plan} plan · ${money(s.total_usd)} at API prices · ${(s.plan_used_pct ?? 0).toFixed(1)}% of the weekly allowance`
+            ? `The API value isn't your bill. The cost is a rough range from published measurements (≈ $7.75–$12 of API usage per $1 of plan); Claude's meter above is exact.`
             : cost.subscription
-              ? `${money(s.total_usd)} at API prices. Pick your plan in Settings to see the real cost.`
+              ? "The API figure isn't your bill on a Claude plan. Set your plan in Settings for a rough cost range."
               : 'Billed to your API key at API prices.'}
         </span>
         <div className="kv" style={{ fontSize: 13 }}>
-          <span>This month (30 days)</span>
-          <span className="mono">{cost.line(s.month_usd ?? 0, s.month_tokens ?? 0)}</span>
+          <span style={{ whiteSpace: 'nowrap' }}>Last 30 days</span>
+          <span className="mono" style={{ whiteSpace: 'nowrap' }}>{cost.line(s.month_usd ?? 0, s.month_tokens ?? 0)}</span>
         </div>
       </div>
 
@@ -413,11 +425,11 @@ function Spend({ o }: { o: Overview }) {
         {projects.length === 0 && <span className="muted" style={{ fontSize: 13 }}>No agent runs this week.</span>}
         {projects.map((p) => (
           <div key={p.project_id} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
-              <span style={{ fontWeight: 500 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: 13 }}>
+              <span style={{ fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {p.name} <span style={{ color: '#74717A', fontWeight: 400 }}>· {plural(p.features, 'spec')}</span>
               </span>
-              <span className="mono">{cost.line(p.usd, p.tokens)}</span>
+              <span className="mono" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{cost.line(p.usd, p.tokens)}</span>
             </div>
             <div aria-hidden="true" style={{ height: 6, borderRadius: 3, background: '#EFEEF1', overflow: 'hidden' }}>
               <div style={{ width: `${(100 * p.usd) / maxProject}%`, height: '100%', background: 'linear-gradient(90deg, #FC6D26, #A989F5)' }} />

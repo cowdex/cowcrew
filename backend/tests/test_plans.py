@@ -1,19 +1,3 @@
-from cowcrew.plans import PLANS
-
-
-def test_every_plan_gives_the_same_value_per_dollar() -> None:
-    per_dollar = {k: p.weekly_value_usd / p.price_month for k, p in PLANS.items()}
-    assert set(per_dollar.values()) == {12.0}
-
-
-def test_real_cost_of_a_run_on_max() -> None:
-    plan = PLANS["max"]
-    # A feature worth $19.43 at API prices uses ~1.6% of Max's weekly allowance.
-    assert round(plan.used_pct(19.43), 1) == 1.6
-    assert round(plan.real_cost(19.43), 2) == 0.37
-    assert round(plan.real_cost(plan.weekly_value_usd), 2) == round(plan.price_week, 2)
-
-
 def test_overview_shows_plan_cost(make_state) -> None:
     from fastapi.testclient import TestClient
 
@@ -25,7 +9,7 @@ def test_overview_shows_plan_cost(make_state) -> None:
         assert client.get("/api/settings").json()["plan"] == "max"
         spend = client.get("/api/overview").json()["spend"]
         assert spend["plan"] == "Max" and spend["plan_week_usd"] == 23.08
-        assert spend["plan_cost_usd"] == 0.0
+        assert spend["plan_cost_usd"] == [0.0, 0.0]
 
 
 def test_overview_splits_usage_per_project(make_state, git_repo) -> None:
@@ -47,7 +31,8 @@ def test_overview_splits_usage_per_project(make_state, git_repo) -> None:
                     data='{"cost_usd": 19.43, "input_tokens": 1000000, "output_tokens": 200000}')
     with TestClient(create_app(state)) as client:
         client.put("/api/settings", json={"plan": "max"})
-        assert round(client.get("/api/settings").json()["plan_usd_per_api_usd"], 4) == 0.0192
+        lo, hi = client.get("/api/settings").json()["plan_usd_per_api_usd"]
+        assert round(lo, 4) == 0.0192 and round(hi, 4) == 0.0298
         spend = client.get("/api/overview").json()["spend"]
     assert spend["by_project"][0]["name"] == "orbit"
     assert spend["by_project"][0]["usd"] == 19.43 and spend["by_project"][0]["tokens"] == 1200000

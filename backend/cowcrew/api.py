@@ -117,9 +117,11 @@ def overview(state: State, project_id: int | None = None) -> Overview:
     if state.settings.billing == "subscription" and plan:
         api_usd = ov.spend.total_usd
         ov.spend.plan = plan.name
-        ov.spend.plan_cost_usd = round(plan.real_cost(api_usd), 2)
+        lo, hi = plan.real_cost(api_usd)
+        ov.spend.plan_cost_usd = (round(lo, 2), round(hi, 2))
         ov.spend.plan_week_usd = round(plan.price_week, 2)
-        ov.spend.plan_used_pct = round(plan.used_pct(api_usd), 1)
+        plo, phi = plan.used_pct(api_usd)
+        ov.spend.plan_used_pct = (round(plo, 1), round(phi, 1))
     return ov
 
 

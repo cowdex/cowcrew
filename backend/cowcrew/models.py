@@ -291,9 +291,9 @@ class Spend(BaseModel):
     month_usd: float = 0.0
     month_tokens: int = 0
     plan: str | None = None
-    plan_cost_usd: float | None = None
+    plan_cost_usd: tuple[float, float] | None = None  # rough range, low-high
     plan_week_usd: float | None = None
-    plan_used_pct: float | None = None
+    plan_used_pct: tuple[float, float] | None = None
 
 
 class Trend(BaseModel):
@@ -333,7 +333,7 @@ class Settings(BaseModel):
     billing: Literal["api", "subscription"] = "api"
     plan: Literal["pro", "max", "ultra"] | None = None
     # Real subscription dollars per dollar of API-priced usage (None without a plan).
-    plan_usd_per_api_usd: float | None = None
+    plan_usd_per_api_usd: tuple[float, float] | None = None  # rough range, low-high
     max_attempts: int
     models: dict[WorkerAgent, str]
     simulate: bool

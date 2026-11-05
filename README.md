@@ -234,9 +234,10 @@ Blockers and a red CI run fixed by On-Call.
 - **Tokens on a subscription, dollars on the API.** On a Claude Pro or Max plan, the
   Overview, the agent panels and the weekly budget show tokens. With an API key they show
   dollars. Force either with `COWCREW_BILLING`.
-- **Real cost on a Claude plan.** Pick Pro, Max or Ultra in Settings and the Overview shows
-  what this week's runs really cost you as a share of the plan (about $12 of API-priced use per
-  $1 of monthly price, an estimate from community measurements).
+- **Rough cost on a Claude plan.** Pick Pro, Max or Ultra in Settings and CowCrew shows a cost
+  range for its runs, based on published measurements of what a weekly allowance is worth
+  (≈ $7.75–$12 of API-priced use per $1 of plan). It's an estimate: Claude's own session and
+  weekly meters are the exact numbers.
 - **Usage you can read at a glance.** The Overview's Usage card shows your Claude plan first
   (session and weekly bars), then what CowCrew cost this week and this month, split by project.
   Every spec shows its own cost in money and tokens, broken down by agent.

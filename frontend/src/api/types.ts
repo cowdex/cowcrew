@@ -191,9 +191,9 @@ export interface Overview {
     month_usd?: number;
     month_tokens?: number;
     plan?: string | null;
-    plan_cost_usd?: number | null;
+    plan_cost_usd?: [number, number] | null;
     plan_week_usd?: number | null;
-    plan_used_pct?: number | null;
+    plan_used_pct?: [number, number] | null;
   };
   trends: {
     key: 'lead_time' | 'loops_per_task' | 'blockers_per_pr';
@@ -238,7 +238,7 @@ export interface Settings {
   budget_tokens_week?: number;
   billing?: Billing;
   plan?: 'pro' | 'max' | 'ultra' | null;
-  plan_usd_per_api_usd?: number | null;
+  plan_usd_per_api_usd?: [number, number] | null;
   max_attempts: number;
   models: Record<WorkerAgentKey, string>;
   simulate: boolean;
