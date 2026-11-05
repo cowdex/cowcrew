@@ -111,13 +111,15 @@ function Projects({ sectionRef }: { sectionRef: RefObject<HTMLElement> }) {
         <h3 id="add-h" className="label" style={{ color: '#45424D' }}>
           Add project
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, alignItems: 'start' }}>
           <label className="field">
             Name
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="orbit-api" />
           </label>
           <label className="field">
-            GitHub owner/repo <span style={{ fontWeight: 400, color: '#74717A' }}>(optional)</span>
+            <span style={{ whiteSpace: 'nowrap' }}>
+              GitHub owner/repo <span style={{ fontWeight: 400, color: '#74717A' }}>(optional)</span>
+            </span>
             <input className="input mono" value={gh} onChange={(e) => setGh(e.target.value)} placeholder="acme/orbit-api" aria-invalid={!ghOk} />
             {!ghOk && <span style={{ color: '#E24329', fontWeight: 400 }}>Use the form owner/repo</span>}
           </label>
