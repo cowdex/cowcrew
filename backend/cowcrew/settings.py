@@ -12,6 +12,7 @@ from pathlib import Path
 
 from cowcrew.db import Database
 from cowcrew.models import DEFAULT_MODELS, Settings, SettingsUpdate
+from cowcrew.plans import PLANS
 
 DEFAULT_PORT = 8787
 DEFAULT_BUDGET_USD = 150.0
@@ -199,6 +200,8 @@ class SettingsStore:
             budget_tokens_week=self.budget_tokens_week,
             billing=self.billing,  # type: ignore[arg-type]
             plan=self.plan,  # type: ignore[arg-type]
+            plan_usd_per_api_usd=(PLANS[self.plan].real_cost(1.0)
+                                  if self.plan and self.billing == "subscription" else None),
             max_attempts=self.max_attempts,
             models=self.models,  # type: ignore[arg-type]
             simulate=self.config.simulate,

@@ -6,7 +6,7 @@ import { Chip, Dot, ErrorState, FeatureHeader, Loading, MetaLine, Modal } from '
 import { clock, compactNum, duration, minus, money, pad3, plural } from '../lib/format';
 import { AGENT_NAME, AGENT_SHORT, featureChip } from '../lib/status';
 import { toast } from '../lib/toast';
-import { useApp, useTokensMode } from '../state/app';
+import { useApp, useCost, useTokensMode } from '../state/app';
 import { useFeatureEvents } from '../state/hooks';
 import { useAction, useFeaturePage } from './shared';
 
@@ -56,6 +56,7 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
   const f = d.feature;
   const { settings } = useApp();
   const tk = useTokensMode();
+  const cost = useCost();
   const maxAttempts = settings?.max_attempts ?? 4;
   const models = settings?.models;
   const [sel, setSel] = useState<NodeKey | null>(null);
@@ -156,7 +157,7 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
         key: 'you', name: 'You', model: 'human', state: you,
         sub: you === 'wait' ? 'gate 2 · waiting on you' : you === 'done' ? 'merged' : 'gate 2 · merge',
         text: you === 'wait' ? 'Everything passed. Review the summary and decide to merge.' : you === 'done' ? `Merged${f.merged_commit ? ` as ${f.merged_commit}` : ''}.` : 'You review the summary and decide to merge.',
-        metrics: [['Gate', '2'], ['Status', you === 'wait' ? 'Ready' : you === 'done' ? 'Merged' : '—'], [tk ? 'Run tokens' : 'Run cost', tk ? compactNum((f.tokens_in ?? 0) + (f.tokens_out ?? 0)) : money(f.cost_usd)], ['Elapsed', duration(f.elapsed_seconds)]],
+        metrics: [['Gate', '2'], ['Status', you === 'wait' ? 'Ready' : you === 'done' ? 'Merged' : '—'], ['Spec cost', cost.money(f.cost_usd)], ['Elapsed', duration(f.elapsed_seconds)]],
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -636,24 +637,44 @@ function TasksCard({ tasks }: { tasks: Task[] }) {
 
 function SpendCard({ d }: { d: FeatureDetail }) {
   const f = d.feature;
-  const tk = useTokensMode();
-  const est = tk ? null : f.estimate?.cost_max ?? null;
+  const cost = useCost();
+  const tokens = f.tokens_in + f.tokens_out;
+  const est = f.estimate?.cost_max ?? null;
   const pct = est ? Math.min(100, Math.round((f.cost_usd / est) * 100)) : null;
+  const byAgent = new Map<string, { usd: number; tokens: number }>();
+  d.spend_by_agent.forEach((s) => {
+    const cur = byAgent.get(s.agent) ?? { usd: 0, tokens: 0 };
+    byAgent.set(s.agent, { usd: cur.usd + s.cost_usd, tokens: cur.tokens + (s.tokens ?? 0) });
+  });
   return (
     <section aria-labelledby="cost-h" className="card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <h2 id="cost-h" className="label">
-        {tk ? 'Tokens used on this run' : 'Spend on this run'}
+        Cost of this spec
       </h2>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.045em' }}>{tk ? compactNum(f.tokens_in + f.tokens_out) : money(f.cost_usd)}</span>
-        {tk && <span style={{ fontSize: 13, color: '#74717A' }}>tokens · counts against your Claude plan</span>}
-        {est != null && <span style={{ fontSize: 13, color: '#74717A' }}>of ${Math.round(est)} estimate</span>}
+      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 10px' }}>
+        <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.045em' }}>{cost.money(f.cost_usd)}</span>
+        <span style={{ fontSize: 14, color: '#45424D' }}>{compactNum(tokens)} tokens</span>
       </div>
-      {pct != null && (
+      <span style={{ fontSize: 12, color: '#74717A' }}>
+        {cost.factor != null
+          ? `Share of your Claude plan · ${money(f.cost_usd)} at API prices`
+          : cost.subscription
+            ? `${money(f.cost_usd)} at API prices · counts against your Claude plan`
+            : est != null
+              ? `of ${money(est, 0)} estimate`
+              : 'Billed to your API key'}
+      </span>
+      {pct != null && !cost.subscription && (
         <div role="meter" aria-label="Spend against estimate" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} style={{ height: 6, background: '#F3F2F4' }}>
           <div style={{ height: 6, width: `${pct}%`, background: 'linear-gradient(90deg, #FCA326, #A989F5)' }} />
         </div>
       )}
+      {[...byAgent.entries()].map(([agent, v]) => (
+        <div key={agent} className="kv" style={{ fontSize: 13 }}>
+          <span title={AGENT_NAME[agent as keyof typeof AGENT_NAME] ?? agent}>{AGENT_SHORT[agent as keyof typeof AGENT_SHORT] ?? agent}</span>
+          <span className="mono" style={{ whiteSpace: 'nowrap' }}>{cost.line(v.usd, v.tokens)}</span>
+        </div>
+      ))}
       <div className="kv" style={{ fontSize: 13 }}>
         <span>Tokens in / out</span>
         <span>

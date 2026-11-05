@@ -269,6 +269,14 @@ class ModelSpend(BaseModel):
     pct: float
 
 
+class ProjectSpend(BaseModel):
+    project_id: int
+    name: str
+    usd: float  # at API prices
+    tokens: int
+    features: int
+
+
 class Spend(BaseModel):
     unit: Literal["usd", "tokens"] = "usd"
     total_usd: float
@@ -279,6 +287,9 @@ class Spend(BaseModel):
     projected_tokens: int = 0
     budget_used_pct: float
     # Subscription only: what this week's usage really cost, as a share of the plan (estimate).
+    by_project: list[ProjectSpend] = []
+    month_usd: float = 0.0
+    month_tokens: int = 0
     plan: str | None = None
     plan_cost_usd: float | None = None
     plan_week_usd: float | None = None
@@ -321,6 +332,8 @@ class Settings(BaseModel):
     budget_tokens_week: int = 0
     billing: Literal["api", "subscription"] = "api"
     plan: Literal["pro", "max", "ultra"] | None = None
+    # Real subscription dollars per dollar of API-priced usage (None without a plan).
+    plan_usd_per_api_usd: float | None = None
     max_attempts: int
     models: dict[WorkerAgent, str]
     simulate: bool

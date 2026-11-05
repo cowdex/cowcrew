@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api } from '../api/client';
 import { onReconnect, onWs, startWs } from '../api/ws';
 import type { Event, Overview, Project, Settings } from '../api/types';
+import { compactNum, money } from '../lib/format';
 
 const NOTIFY_KINDS: Event['kind'][] = ['gate', 'error'];
 const PROJECT_KEY = 'cowcrew.project';
@@ -174,4 +175,39 @@ function mergeEvents(prev: Event[], next: Event[]): Event[] {
 /** True when the user is on a Claude subscription: show tokens instead of dollars. */
 export function useTokensMode(): boolean {
   return useApp().settings?.billing === 'subscription';
+}
+
+export interface CostView {
+  /** On a Claude subscription. */
+  subscription: boolean;
+  /** Real dollars per API-priced dollar; null without a plan or on API billing. */
+  factor: number | null;
+  /** Money as the user pays it: plan share (≈) on a subscription with a plan, else API price. */
+  money: (apiUsd: number) => string;
+  /** "≈ $0.37 · 1.2M tokens" (plan) · "1.2M tokens · $19.43 at API prices" · "$19.43 · 1.2M tokens" */
+  line: (apiUsd: number, tokens: number) => string;
+}
+
+export function useCost(): CostView {
+  const s = useApp().settings;
+  const subscription = s?.billing === 'subscription';
+  const factor = subscription ? s?.plan_usd_per_api_usd ?? null : null;
+  const fmt = (v: number) => (v > 0 && v < 0.01 ? '<$0.01' : money(v));
+  const toMoney = (api: number) => (factor != null ? `≈ ${fmt(api * factor)}` : fmt(api));
+  return {
+    subscription,
+    factor,
+    money: toMoney,
+    line: (api, tokens) => {
+      const tk = `${compactNum(Math.round(tokens))} tokens`;
+      if (factor != null) return `${toMoney(api)} · ${tk}`;
+      if (subscription) return `${tk} · ${fmt(api)} at API prices`;
+      return `${fmt(api)} · ${tk}`;
+    },
+  };
+}
+
+/** A run's or spec's cost, in money and tokens, the way the user pays for it. */
+export function CostText({ usd, tokens }: { usd: number; tokens: number | undefined }) {
+  return <span>{useCost().line(usd, tokens ?? 0)}</span>;
 }

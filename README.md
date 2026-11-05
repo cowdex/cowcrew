@@ -237,6 +237,9 @@ Blockers and a red CI run fixed by On-Call.
 - **Real cost on a Claude plan.** Pick Pro, Max or Ultra in Settings and the Overview shows
   what this week's runs really cost you as a share of the plan (about $12 of API-priced use per
   $1 of monthly price, an estimate from community measurements).
+- **Usage you can read at a glance.** The Overview's Usage card shows your Claude plan first
+  (session and weekly bars), then what CowCrew cost this week and this month, split by project.
+  Every spec shows its own cost in money and tokens, broken down by agent.
 - **Your Claude plan limits, live.** On a Claude login, the Overview shows the same session (5h)
   and weekly usage bars as the Claude apps, as Claude reports them to the agents, with reset times.
 - **Model dropdowns.** Each agent's model is picked from the current Claude lineup, or the live

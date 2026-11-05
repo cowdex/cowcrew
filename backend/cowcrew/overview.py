@@ -21,6 +21,7 @@ from cowcrew.models import (
     Kpis,
     ModelSpend,
     Overview,
+    ProjectSpend,
     Spend,
     StageState,
     Trend,
@@ -103,6 +104,17 @@ def _board(db: Database, rows: list[sqlite3.Row]) -> list[BoardRow]:
     return board
 
 
+def _by_project(db: Database) -> list[ProjectSpend]:
+    """This week's agent usage per project, biggest first."""
+    rows = db.all(
+        f"SELECT p.id AS pid, p.name AS name, SUM({USD}) AS usd, SUM({TOKENS}) AS tokens, "
+        "COUNT(DISTINCT e.feature_id) AS features FROM events e "
+        "JOIN features f ON f.id = e.feature_id JOIN projects p ON p.id = f.project_id "
+        "WHERE e.kind = 'cost' AND e.ts > ? GROUP BY p.id ORDER BY usd DESC", (_ago(7),))
+    return [ProjectSpend(project_id=r["pid"], name=r["name"], usd=round(r["usd"] or 0.0, 2),
+                         tokens=int(r["tokens"] or 0), features=r["features"]) for r in rows]
+
+
 def _spend(db: Database, budget: Budget) -> Spend:
     tokens_mode = budget.unit == "tokens"
     total = budget.tokens_7d if tokens_mode else budget.usd_7d
@@ -140,6 +152,9 @@ def _spend(db: Database, budget: Budget) -> Spend:
                        pct=round(100 * shares[m] / total, 1) if total else 0.0)
             for m in sorted(by_model, key=lambda k: -shares[k])
         ],
+        by_project=_by_project(db),
+        month_usd=round(spend_since_days(db, 30), 2),
+        month_tokens=int(tokens_since_days(db, 30)),
         projected_usd=round(budget.usd_7d * scale, 2),
         projected_tokens=int(budget.tokens_7d * scale),
         budget_used_pct=round(100 * total / limit, 1) if limit else 0.0,

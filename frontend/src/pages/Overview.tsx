@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import type { Event, Overview, PlanLimit, StageState } from '../api/types';
 import { ACTIVITY_PATHS, IconPlus } from '../components/icons';
 import { Chip, Dot, EmptyCard, Loading, StageBar } from '../components/ui';
-import { compactNum, duration, money, moneyShort, numberWord, plural, relTime, usage } from '../lib/format';
+import { compactNum, duration, money, moneyShort, numberWord, plural, relTime } from '../lib/format';
 import { AGENT_NAME, AGENT_STATE_KIND, AGENT_STATE_LABEL, FILL, STATE_WORD, featureChip, featureHref } from '../lib/status';
-import { useApp, useCrumbs, useTokensMode } from '../state/app';
+import { CostText, useApp, useCost, useCrumbs, useTokensMode } from '../state/app';
 import { useNow } from '../state/hooks';
 
 const MONO = "'GitLab Mono', monospace";
@@ -332,7 +332,7 @@ function PlanLimits({ limits }: { limits: PlanLimit[] }) {
   const seen = limits.length ? Math.max(...limits.map((l) => l.seen_at)) : 0;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
-      <span className="label">Claude plan limits</span>
+      <span className="label">Your Claude plan</span>
       {limits.length === 0 && <span style={{ fontSize: 13, color: '#45424D' }}>Claude reports your session and weekly usage here after the next agent run.</span>}
       {limits.map((l) => {
         const pct = l.used_pct ?? 0;
@@ -366,76 +366,94 @@ const MODEL_COLORS = ['#5943B6', '#A989F5', '#FC6D26', '#FCA326', '#7759C2', '#E
 function Spend({ o }: { o: Overview }) {
   const s = o.spend;
   const tk = useTokensMode();
+  const cost = useCost();
+  const projects = s.by_project ?? [];
+  const maxProject = Math.max(1, ...projects.map((p) => p.usd));
+  const section = { display: 'flex', flexDirection: 'column' as const, gap: 10, paddingTop: 14, borderTop: '1px solid #EFEEF1' };
   return (
-    <section aria-labelledby="spend-h" className="card" style={{ flex: '1 1 320px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <section aria-labelledby="spend-h" className="card" style={{ flex: '1 1 340px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 id="spend-h" className="h2">
-          {tk ? 'Agent usage' : 'Agent spend'}
+          Usage
         </h2>
         <Link to="/settings" style={{ fontSize: 13, fontWeight: 500 }}>
-          Budget settings
+          {tk && !s.plan ? 'Set your plan' : 'Budget settings'}
         </Link>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-        <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.045em' }}>{tk ? compactNum(s.total_tokens ?? 0) : money(s.total_usd)}</span>
-        {tk && <span style={{ fontSize: 14, color: '#45424D' }}>tokens</span>}
-        {s.wow_pct != null && (
-          <span className="mono" style={{ fontSize: 12, color: '#171321' }}>
-            {s.wow_pct >= 0 ? '+' : '−'}
-            {Math.abs(s.wow_pct).toFixed(1)}% WoW
-          </span>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 3, height: 8, background: s.by_model.length ? undefined : '#F3F2F4' }} aria-hidden="true">
-        {s.by_model.map((m, i) => (
-          <span key={m.model} style={{ flex: Math.max(m.pct, 0.5), background: MODEL_COLORS[i % MODEL_COLORS.length] }} />
-        ))}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
-        {s.by_model.map((m, i) => (
-          <div key={m.model} style={{ display: 'grid', gridTemplateColumns: '12px 1fr auto 44px', gap: 10, alignItems: 'center' }}>
-            <span style={{ width: 10, height: 10, background: MODEL_COLORS[i % MODEL_COLORS.length] }} />
-            <span>
-              {m.model} <span style={{ color: '#74717A' }}>· {m.agents}</span>
-            </span>
-            <span className="mono">{tk ? compactNum(m.tokens ?? 0) : money(m.usd)}</span>
-            <span className="mono" style={{ fontSize: 12, color: '#74717A', textAlign: 'right' }}>
-              {Math.round(m.pct)}%
-            </span>
-          </div>
-        ))}
-        {s.by_model.length === 0 && <span className="muted">{tk ? 'No usage yet this week.' : 'No spend yet this week.'}</span>}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: '1px solid #EFEEF1', marginTop: 'auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="label">Projected</span>
-          <span style={{ fontSize: 20, fontWeight: 600 }}>{tk ? `${compactNum(s.projected_tokens ?? 0)} tokens` : money(s.projected_usd)}</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="label">Budget</span>
-          <span style={{ fontSize: 20, fontWeight: 600, color: '#171321' }}>{Math.round(s.budget_used_pct)}% used</span>
-        </div>
-      </div>
+
       {tk && <PlanLimits limits={o.limits ?? []} />}
-      {tk && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
-          <span className="label">Real cost on your plan</span>
-          {s.plan && s.plan_cost_usd != null ? (
-            <>
-              <span style={{ fontSize: 20, fontWeight: 600 }}>
-                ≈ {money(s.plan_cost_usd)} <span style={{ fontSize: 13, fontWeight: 400, color: '#74717A' }}>of {money(s.plan_week_usd ?? 0)} / week on {s.plan}</span>
-              </span>
-              <span style={{ fontSize: 12, color: '#74717A' }}>
-                {(s.plan_used_pct ?? 0).toFixed(1)}% of your weekly allowance · {money(s.total_usd)} at API prices. Estimate: a plan covers about $12 of API-priced use per $1 of monthly price.
-              </span>
-            </>
-          ) : (
-            <span style={{ fontSize: 13, color: '#45424D' }}>
-              {money(s.total_usd)} at API prices this week. <Link to="/settings">Pick your plan</Link> to see what it really costs you.
+
+      <div style={{ ...section, ...(tk ? {} : { paddingTop: 0, borderTop: 0 }) }}>
+        <span className="label">CowCrew this week</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 10px' }}>
+          <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.045em' }}>{cost.money(s.total_usd)}</span>
+          <span style={{ fontSize: 14, color: '#45424D' }}>{compactNum(s.total_tokens ?? 0)} tokens</span>
+          {s.wow_pct != null && (
+            <span className="mono" style={{ fontSize: 12, color: '#171321' }}>
+              {s.wow_pct >= 0 ? '+' : '−'}
+              {Math.abs(s.wow_pct).toFixed(1)}% WoW
             </span>
           )}
         </div>
-      )}
+        <span style={{ fontSize: 12, color: '#74717A' }}>
+          {cost.factor != null
+            ? `Your share of the ${s.plan} plan · ${money(s.total_usd)} at API prices · ${(s.plan_used_pct ?? 0).toFixed(1)}% of the weekly allowance`
+            : cost.subscription
+              ? `${money(s.total_usd)} at API prices. Pick your plan in Settings to see the real cost.`
+              : 'Billed to your API key at API prices.'}
+        </span>
+        <div className="kv" style={{ fontSize: 13 }}>
+          <span>This month (30 days)</span>
+          <span className="mono">{cost.line(s.month_usd ?? 0, s.month_tokens ?? 0)}</span>
+        </div>
+      </div>
+
+      <div style={section}>
+        <span className="label">By project</span>
+        {projects.length === 0 && <span className="muted" style={{ fontSize: 13 }}>No agent runs this week.</span>}
+        {projects.map((p) => (
+          <div key={p.project_id} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+              <span style={{ fontWeight: 500 }}>
+                {p.name} <span style={{ color: '#74717A', fontWeight: 400 }}>· {plural(p.features, 'spec')}</span>
+              </span>
+              <span className="mono">{cost.line(p.usd, p.tokens)}</span>
+            </div>
+            <div aria-hidden="true" style={{ height: 6, borderRadius: 3, background: '#EFEEF1', overflow: 'hidden' }}>
+              <div style={{ width: `${(100 * p.usd) / maxProject}%`, height: '100%', background: 'linear-gradient(90deg, #FC6D26, #A989F5)' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <details style={section}>
+        <summary className="label" style={{ cursor: 'pointer' }}>
+          By model
+        </summary>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, paddingTop: 8 }}>
+          {s.by_model.map((m, i) => (
+            <div key={m.model} style={{ display: 'grid', gridTemplateColumns: '12px 1fr auto', gap: 10, alignItems: 'center' }}>
+              <span style={{ width: 10, height: 10, background: MODEL_COLORS[i % MODEL_COLORS.length] }} />
+              <span>
+                {m.model} <span style={{ color: '#74717A' }}>· {m.agents}</span>
+              </span>
+              <span className="mono">{cost.line(m.usd, m.tokens ?? 0)}</span>
+            </div>
+          ))}
+          {s.by_model.length === 0 && <span className="muted">No usage yet this week.</span>}
+        </div>
+      </details>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: '1px solid #EFEEF1', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="label">Projected week</span>
+          <span style={{ fontSize: 18, fontWeight: 600 }}>{cost.money(s.projected_usd)}</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="label">CowCrew budget</span>
+          <span style={{ fontSize: 18, fontWeight: 600, color: '#171321' }}>{Math.round(s.budget_used_pct)}% used</span>
+        </div>
+      </div>
     </section>
   );
 }
@@ -540,7 +558,7 @@ function FeaturesTable({ o }: { o: Overview }) {
                     {duration(f.elapsed_seconds)}
                   </span>
                   <span role="cell" className="mono" style={{ fontSize: 13 }}>
-                    {usage(tk, f.cost_usd, f.tokens)}
+                    <CostText usd={f.cost_usd} tokens={f.tokens} />
                   </span>
                   <span role="cell">
                     <Chip kind={c.kind}>{c.label}</Chip>

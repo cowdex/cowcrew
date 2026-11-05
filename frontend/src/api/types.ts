@@ -187,6 +187,9 @@ export interface Overview {
     projected_usd: number;
     projected_tokens?: number;
     budget_used_pct: number;
+    by_project?: { project_id: number; name: string; usd: number; tokens: number; features: number }[];
+    month_usd?: number;
+    month_tokens?: number;
     plan?: string | null;
     plan_cost_usd?: number | null;
     plan_week_usd?: number | null;
@@ -235,6 +238,7 @@ export interface Settings {
   budget_tokens_week?: number;
   billing?: Billing;
   plan?: 'pro' | 'max' | 'ultra' | null;
+  plan_usd_per_api_usd?: number | null;
   max_attempts: number;
   models: Record<WorkerAgentKey, string>;
   simulate: boolean;
