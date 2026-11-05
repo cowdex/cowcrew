@@ -75,8 +75,13 @@ def record(db: Database, info: dict[str, Any], source: str = "agent") -> None:
 
 def record_statusline(db: Database, rate_limits: dict[str, Any]) -> int:
     """`rate_limits` from Claude Code's status-line JSON. Returns how many windows were stored."""
+    rate_limits = dict(rate_limits or {})
+    meta = rate_limits.pop("_meta", None) or {}
+    db.set_setting("statusline_heartbeat", {
+        "seen_at": _now(), "version": meta.get("version"),
+        "has_rate_limits": bool(meta.get("has_rate_limits", bool(rate_limits)))})
     n = 0
-    for kind, row in (rate_limits or {}).items():
+    for kind, row in rate_limits.items():
         if not isinstance(row, dict) or row.get("used_percentage") is None:
             continue
         used = float(row["used_percentage"])
@@ -131,8 +136,12 @@ def daily(db: Database, days: int = 7) -> list[DailyUsage]:
 
 def usage(db: Database, statusline_on: bool) -> ClaudeUsage:
     lim = read(db)
+    beat = db.get_setting("statusline_heartbeat", None) or {}
     return ClaudeUsage(limits=lim, updated_at=max((x.seen_at for x in lim), default=None),
-                       daily=daily(db), statusline_connected=statusline_on)
+                       daily=daily(db), statusline_connected=statusline_on,
+                       statusline_seen_at=beat.get("seen_at"),
+                       statusline_version=beat.get("version"),
+                       statusline_has_limits=beat.get("has_rate_limits"))
 
 
 def simulate(db: Database, session_tokens: int = 4_000_000, week_tokens: int = 40_000_000) -> None:
@@ -181,13 +190,24 @@ import json, pathlib, subprocess, sys, urllib.request
 URL = {url!r}
 SAVED = pathlib.Path({saved!r})
 PREVIOUS = json.loads(SAVED.read_text()).get("command") if SAVED.exists() else None
+LOG = SAVED.with_name("claude-statusline-last.json")
 raw = sys.stdin.read()
+note = {{}}
 try:
-    limits = json.loads(raw).get("rate_limits")
-    if limits:
-        req = urllib.request.Request(URL, data=json.dumps(limits).encode(),
-                                     headers={{"content-type": "application/json"}})
-        urllib.request.urlopen(req, timeout=0.5)
+    data = json.loads(raw) if raw.strip() else {{}}
+    limits = data.get("rate_limits") or {{}}
+    body = dict(limits)
+    body["_meta"] = {{"version": data.get("version"), "has_rate_limits": bool(limits),
+                     "keys": sorted(data)}}
+    note = body["_meta"]
+    req = urllib.request.Request(URL, data=json.dumps(body).encode(),
+                                 headers={{"content-type": "application/json"}})
+    urllib.request.urlopen(req, timeout=0.5)
+    note["sent"] = True
+except Exception as exc:
+    note["error"] = repr(exc)[:300]
+try:
+    LOG.write_text(json.dumps(note, indent=2))
 except Exception:
     pass
 if PREVIOUS:
@@ -236,11 +256,27 @@ def install_statusline(home: Path, url: str) -> None:
     if str(script) not in current.get("command", ""):  # remember the user's own status line once
         saved.write_text(json.dumps({"command": current.get("command")}))
     script.write_text(SCRIPT.format(url=url, saved=str(saved)))
+    (home / "claude-statusline-url.txt").write_text(url)
     script.chmod(0o755)
     data["statusLine"] = {**current, "type": "command",
                           "command": f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}"}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def refresh_statusline_script(home: Path) -> None:
+    """Rewrite an installed forwarder with the current version (called at startup)."""
+    script, url_file = _script_path(home), home / "claude-statusline-url.txt"
+    if not script.exists():
+        return
+    url = url_file.read_text().strip() if url_file.exists() else None
+    if not url:  # installed by an older CowCrew: read the URL from the script itself
+        for line in script.read_text().splitlines():
+            if line.startswith("URL = "):
+                url = line.removeprefix("URL = ").strip().strip("'\"")
+    if url:
+        script.write_text(SCRIPT.format(url=url, saved=str(_saved_path(home))))
+        url_file.write_text(url)
 
 
 def uninstall_statusline(home: Path) -> None:

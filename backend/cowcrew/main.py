@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from cowcrew import __version__, store
+from cowcrew import __version__, limits, store
 from cowcrew.agents.runner import AgentRunner, BaseRunner, SimulatedRunner
 from cowcrew.api import AppState, router
 from cowcrew.db import Database
@@ -81,6 +81,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         state.bus.bind_loop(asyncio.get_running_loop())
         state.orchestrator.recover()
+        limits.refresh_statusline_script(state.config.home)  # keep an installed forwarder current
         yield
         await state.orchestrator.shutdown()
 

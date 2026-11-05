@@ -85,3 +85,27 @@ def test_statusline_script_forwards_and_runs_previous(tmp_path, monkeypatch) -> 
                          input=json.dumps({"rate_limits": {"five_hour": {"used_percentage": 3}}}),
                          capture_output=True, text=True, timeout=10)
     assert out.stdout.strip() == "previous-line"
+
+
+def test_statusline_heartbeat_without_limits(make_state) -> None:
+    with TestClient(create_app(make_state(billing="subscription"))) as client:
+        r = client.post("/api/claude-usage/statusline",
+                        json={"_meta": {"version": "2.9.1", "has_rate_limits": False}})
+        assert r.json() == {"stored": 0}
+        usage = client.get("/api/claude-usage").json()
+    assert usage["statusline_version"] == "2.9.1" and usage["statusline_has_limits"] is False
+    assert usage["statusline_seen_at"]
+
+
+def test_statusline_script_posts_heartbeat(tmp_path, monkeypatch) -> None:
+    import subprocess
+    import sys
+
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude"))
+    home = tmp_path / "cowcrew"
+    limits.install_statusline(home, "http://127.0.0.1:9/unreachable")
+    subprocess.run([sys.executable, str(home / "claude-statusline.py")],
+                   input=json.dumps({"version": "2.9.1", "model": {}}),
+                   capture_output=True, text=True, timeout=10)
+    log = json.loads((home / "claude-statusline-last.json").read_text())
+    assert log["version"] == "2.9.1" and log["has_rate_limits"] is False and "error" in log

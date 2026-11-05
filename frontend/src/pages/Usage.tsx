@@ -218,7 +218,11 @@ export default function UsagePage() {
           </h2>
           <span style={{ fontSize: 13, color: '#45424D', lineHeight: 1.5 }}>
             {u.statusline_connected
-              ? 'Connected. Every time Claude Code replies, it sends your session and weekly numbers here. Your own status line, if you had one, still shows.'
+              ? !u.statusline_seen_at
+                ? 'Connected, but Claude Code hasn’t called in yet. Start a new Claude Code session (run claude in a terminal) and send one message; the status line only runs in interactive sessions.'
+                : u.statusline_has_limits
+                  ? `Connected. Claude Code${u.statusline_version ? ` ${u.statusline_version}` : ''} last sent your numbers ${ago(u.statusline_seen_at, now)}.`
+                  : `Claude Code${u.statusline_version ? ` ${u.statusline_version}` : ''} called in ${ago(u.statusline_seen_at, now)} but didn’t include usage numbers. They appear after Claude’s first reply in a session, on a Pro/Max/Ultra login; if they never do, update Claude Code (npm i -g @anthropic-ai/claude-code or claude update).`
               : 'Claude Code receives your session and weekly numbers after every reply. Connect it and CowCrew updates whenever you use Claude Code, not only when agents run. This adds a status-line command to ~/.claude/settings.json (a backup is kept) and you can undo it here.'}
           </span>
         </div>

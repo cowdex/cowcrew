@@ -329,6 +329,9 @@ class ClaudeUsage(BaseModel):
     updated_at: float | None
     daily: list[DailyUsage]
     statusline_connected: bool
+    statusline_seen_at: float | None = None  # last time Claude Code's status line called in
+    statusline_version: str | None = None
+    statusline_has_limits: bool | None = None  # did that call include usage numbers?
 
 
 class Overview(BaseModel):

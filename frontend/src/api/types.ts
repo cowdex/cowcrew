@@ -224,6 +224,9 @@ export interface ClaudeUsage {
   updated_at: number | null;
   daily: { date: string; weekly_pct: number }[];
   statusline_connected: boolean;
+  statusline_seen_at?: number | null;
+  statusline_version?: string | null;
+  statusline_has_limits?: boolean | null;
 }
 
 export type Billing = 'api' | 'subscription';
