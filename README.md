@@ -291,8 +291,7 @@ examples/   shortly: a small FastAPI app to try CowCrew on
 
 ## Credits
 
-CowCrew adapts the agent contracts of [Squid](https://github.com/iusztinpaul/squid) by Paul
-Iusztin (Apache-2.0); see [NOTICE](NOTICE). The interface uses
+Third-party notices are in [NOTICE](NOTICE). The interface uses
 [GitLab Sans and GitLab Mono](https://gitlab.com/gitlab-org/frontend/fonts) (SIL Open Font
 License).
 

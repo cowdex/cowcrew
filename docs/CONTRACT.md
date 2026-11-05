@@ -17,7 +17,7 @@ cowcrew/
       events.py            event bus: persist Event + broadcast over /ws
       orchestrator.py      resumable pipeline state machine
       agents/runner.py     AgentRunner (Claude Agent SDK) and SimulatedRunner
-      agents/prompts/*.md  role prompts adapted from Squid (Apache-2.0, see NOTICE)
+      agents/prompts/*.md  role prompts for the five agents (see NOTICE)
       guard.py             can_use_tool policy (worktree-only writes, no push, no .github edits)
       gitops.py            worktree, commit, diff, merge (subprocess git)
       github.py            push, PR, CI runs via `gh` CLI (optional)
