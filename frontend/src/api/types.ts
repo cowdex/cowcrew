@@ -203,6 +203,19 @@ export interface Overview {
 
 export type Billing = 'api' | 'subscription';
 
+export interface ModelOption {
+  id: string;
+  name: string;
+  group: string;
+  note: string;
+}
+
+export interface ModelCatalog {
+  source: 'anthropic' | 'builtin';
+  fetched_at: number;
+  models: ModelOption[];
+}
+
 export interface Settings {
   budget_usd_week: number;
   budget_tokens_week?: number;

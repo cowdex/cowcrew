@@ -587,6 +587,21 @@ export async function mockRequest(method: string, rawPath: string, body: unknown
     return { ok: true };
   }
   if (path === '/overview') return overview(q.get('project_id') ? Number(q.get('project_id')) : null);
+  if (path.startsWith('/models') && method === 'GET')
+    return {
+      source: 'builtin',
+      fetched_at: Date.now() / 1000,
+      models: [
+        { id: 'fable', name: 'Fable (latest)', group: 'Latest (alias)', note: 'Most capable; best for planning and review' },
+        { id: 'opus', name: 'Opus (latest)', group: 'Latest (alias)', note: 'Strong all-rounder for coding' },
+        { id: 'sonnet', name: 'Sonnet (latest)', group: 'Latest (alias)', note: 'Fast and cheaper; good for tests and CI logs' },
+        { id: 'haiku', name: 'Haiku (latest)', group: 'Latest (alias)', note: 'Fastest and cheapest' },
+        { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', group: 'Current', note: '$10 / $50 per MTok' },
+        { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', group: 'Current', note: '$4 / $20 per MTok' },
+        { id: 'claude-sonnet-5-5', name: 'Claude Sonnet 5.5', group: 'Current', note: '$2 / $10 per MTok' },
+        { id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5', group: 'Current', note: 'from $0.10 / $0.50 per MTok' },
+      ],
+    };
   if (path === '/settings' && method === 'GET') return settings;
   if (path === '/settings' && method === 'PUT') {
     settings = { ...settings, ...(b as Partial<Settings>), models: { ...settings.models, ...((b.models as Record<WorkerAgentKey, string>) ?? {}) } };

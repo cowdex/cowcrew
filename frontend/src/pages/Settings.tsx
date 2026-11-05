@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../api/client';
-import type { Settings, WorkerAgentKey } from '../api/types';
+import type { ModelCatalog, ModelOption, Settings, WorkerAgentKey } from '../api/types';
 import { Chip, Loading, Modal } from '../components/ui';
 import { relTime } from '../lib/format';
 import { AGENT_NAME, WORKER_AGENTS } from '../lib/status';
 import { toast } from '../lib/toast';
 import { useApp, useCrumbs } from '../state/app';
 
-const MODEL_SUGGESTIONS = ['fable', 'opus', 'sonnet', 'haiku'];
 
 export default function SettingsPage() {
   useCrumbs([{ label: 'Settings' }]);
@@ -174,6 +173,21 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
   const [attempts, setAttempts] = useState(String(settings.max_attempts));
   const [models, setModels] = useState<Record<WorkerAgentKey, string>>(settings.models);
   const [busy, setBusy] = useState(false);
+  const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const loadModels = async (refresh = false) => {
+    setLoadingModels(true);
+    try {
+      setCatalog(await api.models(refresh));
+    } catch {
+      /* toast shown */
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+  useEffect(() => {
+    void loadModels();
+  }, []);
   const dirty = Number(budget) !== storedBudget || Number(attempts) !== settings.max_attempts || WORKER_AGENTS.some((a) => models[a] !== settings.models[a]);
 
   const save = async (e: FormEvent) => {
@@ -215,17 +229,25 @@ function RunSettings({ settings, onSaved }: { settings: Settings; onSaved: (s: S
         <legend className="label" style={{ marginBottom: 10, color: '#45424D' }}>
           Model per agent
         </legend>
-        <datalist id="models">
-          {MODEL_SUGGESTIONS.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
         {WORKER_AGENTS.map((a) => (
           <label key={a} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 200px) 1fr', gap: 12, alignItems: 'center', fontSize: 14 }}>
             <span style={{ fontWeight: 500 }}>{AGENT_NAME[a]}</span>
-            <input className="input mono" list="models" value={models[a]} onChange={(e) => setModels((m) => ({ ...m, [a]: e.target.value }))} required style={{ height: 38 }} />
+            <ModelSelect value={models[a]} catalog={catalog} onChange={(v) => setModels((m) => ({ ...m, [a]: v }))} />
           </label>
         ))}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 12, color: '#74717A' }}>
+          <span>
+            {!catalog
+              ? 'Loading models…'
+              : catalog.source === 'anthropic'
+                ? `Live list from your Anthropic API key · updated ${relTime(new Date(catalog.fetched_at * 1000).toISOString())}`
+                : 'Current Claude models (built-in list). Add an ANTHROPIC_API_KEY to load the live list from Anthropic.'}
+            {' '}“Latest” options always use the newest model of that family.
+          </span>
+          <button type="button" className="btn" style={{ minHeight: 32, fontSize: 12, padding: '0 12px', flex: 'none', whiteSpace: 'nowrap' }} onClick={() => void loadModels(true)} disabled={loadingModels}>
+            {loadingModels ? 'Refreshing…' : 'Refresh list'}
+          </button>
+        </div>
       </fieldset>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <button
@@ -288,5 +310,32 @@ function StatusCard({ settings }: { settings: Settings | null }) {
       )}
       <span className="label">Server {version ?? 'unreachable'}</span>
     </section>
+  );
+}
+
+function ModelSelect({ value, catalog, onChange }: { value: string; catalog: ModelCatalog | null; onChange: (v: string) => void }) {
+  const options: ModelOption[] = catalog?.models ?? [];
+  const groups = [...new Set(options.map((o) => o.group))];
+  const known = options.some((o) => o.id === value);
+  const current = options.find((o) => o.id === value);
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+      <select className="input" value={value} onChange={(e) => onChange(e.target.value)} required style={{ height: 38 }}>
+        {!known && <option value={value}>{value} (custom)</option>}
+        {groups.map((g) => (
+          <optgroup key={g} label={g}>
+            {options
+              .filter((o) => o.group === g)
+              .map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                  {o.id !== o.name.toLowerCase() && !o.name.includes('(latest)') ? ` · ${o.id}` : ''}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+      {current?.note && <span style={{ fontSize: 12, color: '#74717A' }}>{current.note}</span>}
+    </span>
   );
 }

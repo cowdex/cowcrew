@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from cowcrew import __version__, gitops
 from cowcrew.agents.runner import BaseRunner
+from cowcrew.catalog import ModelCatalog, catalog
 from cowcrew.db import Database, now_iso
 from cowcrew.events import EventBus, row_to_event
 from cowcrew.models import (
@@ -230,6 +231,12 @@ async def message(feature_id: int, body: MessageBody, state: State) -> dict[str,
 @router.get("/settings")
 def get_settings(state: State) -> Settings:
     return state.settings.view()
+
+
+@router.get("/models")
+def get_models(refresh: bool = False) -> ModelCatalog:
+    """Claude models for the Settings dropdowns: live from the Anthropic API, else built in."""
+    return catalog(refresh)
 
 
 @router.put("/settings")

@@ -7,7 +7,7 @@ import type {
   Overview,
   Project,
   Settings,
-} from './types';
+ ModelCatalog } from './types';
 
 export const MOCK = import.meta.env.VITE_MOCK === '1';
 
@@ -116,6 +116,7 @@ export const api = {
     request<{ ok: boolean }>('POST', `/features/${id}/message`, { agent, text }),
 
   settings: () => request<Settings>('GET', '/settings'),
+  models: (refresh = false) => request<ModelCatalog>('GET', `/models${refresh ? '?refresh=true' : ''}`),
   saveSettings: (b: Partial<Pick<Settings, 'budget_usd_week' | 'budget_tokens_week' | 'max_attempts' | 'models'>>) =>
     request<Settings>('PUT', '/settings', b),
 };
