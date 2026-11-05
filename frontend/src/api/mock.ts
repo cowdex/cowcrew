@@ -587,6 +587,18 @@ export async function mockRequest(method: string, rawPath: string, body: unknown
     return { ok: true };
   }
   if (path === '/overview') return overview(q.get('project_id') ? Number(q.get('project_id')) : null);
+  if (path.startsWith('/claude-usage')) {
+    const t = Date.now() / 1000;
+    return {
+      limits: [
+        { kind: 'five_hour', label: 'Current session', used_pct: 34, status: 'allowed', resets_at: t + 2.2 * 3600, seen_at: t - 60, source: 'claude_code' },
+        { kind: 'seven_day', label: 'All models', used_pct: 62, status: 'allowed', resets_at: t + 3.5 * 86400, seen_at: t - 60, source: 'claude_code' },
+      ],
+      updated_at: t - 60,
+      daily: [3, 9, 0, 14, 11, 17, 8].map((v, i) => ({ date: new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10), weekly_pct: v })),
+      statusline_connected: false,
+    };
+  }
   if (path.startsWith('/models') && method === 'GET')
     return {
       source: 'builtin',

@@ -133,6 +133,16 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS limit_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts REAL NOT NULL,
+    kind TEXT NOT NULL,
+    used_pct REAL NOT NULL,
+    resets_at REAL,
+    source TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS limit_snapshots_kind_ts ON limit_snapshots(kind, ts);
 """
 
 

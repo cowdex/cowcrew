@@ -13,6 +13,7 @@ import ReviewPage from './pages/Review';
 import CIPage from './pages/CI';
 import MergePage from './pages/Merge';
 import SettingsPage from './pages/Settings';
+import UsagePage from './pages/Usage';
 import { Link } from 'react-router-dom';
 import { useApp, useCrumbs } from './state/app';
 
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/ci" element={<CiList />} />
         <Route path="/merge" element={<MergeList />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/usage" element={<UsagePage />} />
         <Route path="/features/:id" element={<FeatureIndex />} />
         <Route path="/features/:id/plan" element={<PlanPage />} />
         <Route path="/features/:id/live" element={<LivePage />} />

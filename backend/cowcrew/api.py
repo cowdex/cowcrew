@@ -16,6 +16,7 @@ from cowcrew.db import Database, now_iso
 from cowcrew.events import EventBus, row_to_event
 from cowcrew.models import (
     AnswersBody,
+    ClaudeUsage,
     Event,
     FeatureCreate,
     FeatureDetail,
@@ -243,6 +244,59 @@ async def message(feature_id: int, body: MessageBody, state: State) -> dict[str,
 @router.get("/settings")
 def get_settings(state: State) -> Settings:
     return state.settings.view()
+
+
+@router.get("/claude-usage")
+def claude_usage(state: State) -> ClaudeUsage:
+    """Session and weekly limits as Claude reports them, plus daily use of the weekly limit."""
+    return limits.usage(state.db, limits.statusline_installed(state.config.home))
+
+
+@router.post("/claude-usage/statusline")
+async def claude_usage_from_statusline(request: Request, state: State) -> dict[str, int]:
+    """Receives `rate_limits` from Claude Code's status line (via CowCrew's forwarder script)."""
+    try:
+        body = await request.json()
+    except ValueError as exc:
+        raise HTTPException(400, "expected JSON") from exc
+    stored = limits.record_statusline(state.db, body if isinstance(body, dict) else {})
+    if stored:
+        state.bus.notify({"type": "claude_usage"})
+    return {"stored": stored}
+
+
+@router.post("/claude-usage/refresh")
+async def claude_usage_refresh(state: State) -> ClaudeUsage:
+    """Ask Claude for fresh numbers (one tiny Haiku request), or simulate them."""
+    if state.config.simulate:
+        limits.simulate(state.db)
+    elif state.settings.billing != "subscription":
+        raise HTTPException(409, "Plan limits only exist on a Claude subscription login")
+    else:
+        try:
+            got = await limits.probe(state.db)
+        except Exception as exc:  # SDK/CLI missing, offline, logged out
+            raise HTTPException(502, f"Couldn't reach Claude: {exc}") from exc
+        if not got:
+            raise HTTPException(
+                502, "Claude answered but didn't report usage this time. Try again in a minute.")
+    return limits.usage(state.db, limits.statusline_installed(state.config.home))
+
+
+@router.post("/claude-usage/statusline/install")
+def claude_usage_install(request: Request, state: State) -> ClaudeUsage:
+    url = str(request.base_url).rstrip("/") + "/api/claude-usage/statusline"
+    try:
+        limits.install_statusline(state.config.home, url)
+    except ValueError as exc:
+        raise HTTPException(409, "Your Claude Code settings.json isn't valid JSON") from exc
+    return limits.usage(state.db, True)
+
+
+@router.delete("/claude-usage/statusline/install")
+def claude_usage_uninstall(state: State) -> ClaudeUsage:
+    limits.uninstall_statusline(state.config.home)
+    return limits.usage(state.db, False)
 
 
 @router.get("/models")

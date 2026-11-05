@@ -7,7 +7,7 @@ import type {
   Overview,
   Project,
   Settings,
- ModelCatalog } from './types';
+ ModelCatalog, ClaudeUsage } from './types';
 
 export const MOCK = import.meta.env.VITE_MOCK === '1';
 
@@ -116,6 +116,10 @@ export const api = {
     request<{ ok: boolean }>('POST', `/features/${id}/message`, { agent, text }),
 
   settings: () => request<Settings>('GET', '/settings'),
+  claudeUsage: () => request<ClaudeUsage>('GET', '/claude-usage'),
+  refreshClaudeUsage: () => request<ClaudeUsage>('POST', '/claude-usage/refresh'),
+  connectStatusline: () => request<ClaudeUsage>('POST', '/claude-usage/statusline/install'),
+  disconnectStatusline: () => request<ClaudeUsage>('DELETE', '/claude-usage/statusline/install'),
   models: (refresh = false) => request<ModelCatalog>('GET', `/models${refresh ? '?refresh=true' : ''}`),
   saveSettings: (b: Partial<Pick<Settings, 'budget_usd_week' | 'budget_tokens_week' | 'max_attempts' | 'models' | 'plan'>>) =>
     request<Settings>('PUT', '/settings', b),

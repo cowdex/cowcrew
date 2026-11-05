@@ -88,6 +88,10 @@ class EventBus:
         if summary is not None:
             self._broadcast({"type": "feature", "feature": summary.model_dump()})
 
+    def notify(self, message: dict[str, Any]) -> None:
+        """Send a small message (no stored event) to every connected dashboard."""
+        self._broadcast(message)
+
     def _broadcast(self, message: dict[str, Any]) -> None:
         with self._lock:
             queues = list(self._subscribers)

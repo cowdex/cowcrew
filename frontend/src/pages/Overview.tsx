@@ -332,7 +332,12 @@ function PlanLimits({ limits }: { limits: PlanLimit[] }) {
   const seen = limits.length ? Math.max(...limits.map((l) => l.seen_at)) : 0;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #EFEEF1' }}>
-      <span className="label">Your Claude plan</span>
+      <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span className="label">Your Claude plan</span>
+        <Link to="/usage" style={{ fontSize: 12, fontWeight: 500 }}>
+          Details →
+        </Link>
+      </span>
       {limits.length === 0 && <span style={{ fontSize: 13, color: '#45424D' }}>Claude reports your session and weekly usage here after the next agent run.</span>}
       {limits.map((l) => {
         const pct = l.used_pct ?? 0;

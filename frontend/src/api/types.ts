@@ -216,6 +216,14 @@ export interface PlanLimit {
   status: 'allowed' | 'allowed_warning' | 'rejected' | string;
   resets_at: number | null;
   seen_at: number;
+  source?: 'agent' | 'claude_code' | 'refresh' | 'simulated' | string;
+}
+
+export interface ClaudeUsage {
+  limits: PlanLimit[];
+  updated_at: number | null;
+  daily: { date: string; weekly_pct: number }[];
+  statusline_connected: boolean;
 }
 
 export type Billing = 'api' | 'subscription';
@@ -249,4 +257,5 @@ export interface Settings {
 export type WsMessage =
   | { type: 'event'; event: Event }
   | { type: 'feature'; feature: FeatureSummary }
-  | { type: 'hello'; version: string };
+  | { type: 'hello'; version: string }
+  | { type: 'claude_usage' };

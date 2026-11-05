@@ -241,8 +241,10 @@ Blockers and a red CI run fixed by On-Call.
 - **Usage you can read at a glance.** The Overview's Usage card shows your Claude plan first
   (session and weekly bars), then what CowCrew cost this week and this month, split by project.
   Every spec shows its own cost in money and tokens, broken down by agent.
-- **Your Claude plan limits, live.** On a Claude login, the Overview shows the same session (5h)
-  and weekly usage bars as the Claude apps, as Claude reports them to the agents, with reset times.
+- **Claude usage page.** A page that mirrors Settings → Usage in the Claude apps: current
+  session, weekly limits with reset times, and how much of the week you used each day. Numbers
+  come from Claude itself (agent runs, a one-click **Refresh now**, and optionally Claude Code's
+  status line, which CowCrew can connect so it updates every time you use Claude Code).
 - **Model dropdowns.** Each agent's model is picked from the current Claude lineup, or the live
   list from the Anthropic API when you use an API key.
 - **macOS Keychain login.** A Claude Code login on a Mac is found without extra setup.

@@ -18,6 +18,12 @@ export const IconOverview = (p: P) => (
     <rect x="14" y="14" width="7" height="7" rx="1.5" />
   </Svg>
 );
+export const IconGauge = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 17a8 8 0 1 1 16 0" />
+    <path d="M12 17l4-5" />
+  </Svg>
+);
 export const IconList = (p: P) => (
   <Svg {...p}>
     <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />

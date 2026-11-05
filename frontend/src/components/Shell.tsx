@@ -4,7 +4,7 @@ import { useApp } from '../state/app';
 import { AGENT_NAME, AGENT_STATE_KIND, ST, featureChip, featureHref } from '../lib/status';
 import { relTime } from '../lib/format';
 import { Chip, Dot, Toasts } from './ui';
-import { IconBell, IconChevron, IconEye, IconGear, IconList, IconMerge, IconOverview, IconPulse, IconRefresh, IconSearch } from './icons';
+import { IconBell, IconChevron, IconEye, IconGear, IconList, IconMerge, IconOverview, IconPulse, IconRefresh, IconSearch, IconGauge } from './icons';
 
 function Sidebar() {
   const { overview } = useApp();
@@ -26,6 +26,7 @@ function Sidebar() {
     { to: '/reviews', label: 'Reviews', icon: <IconEye /> },
     { to: '/ci', label: 'CI & On-Call', icon: <IconRefresh />, badge: ciFail, badgeKind: 'fail', badgeLabel: 'failing' },
     { to: '/merge', label: 'Merge queue', icon: <IconMerge />, badge: merges, badgeLabel: 'awaiting merge' },
+    { to: '/usage', label: 'Claude usage', icon: <IconGauge /> },
   ];
 
   return (

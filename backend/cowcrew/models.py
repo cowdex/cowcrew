@@ -314,6 +314,21 @@ class PlanLimit(BaseModel):
     status: str  # allowed | allowed_warning | rejected
     resets_at: float | None
     seen_at: float
+    source: str = "agent"  # agent | claude_code | refresh | simulated
+
+
+class DailyUsage(BaseModel):
+    date: str  # local day, YYYY-MM-DD
+    weekly_pct: float  # share of the weekly limit used that day
+
+
+class ClaudeUsage(BaseModel):
+    """The Claude apps' usage page, as far as Claude reports it to its tools."""
+
+    limits: list[PlanLimit]
+    updated_at: float | None
+    daily: list[DailyUsage]
+    statusline_connected: bool
 
 
 class Overview(BaseModel):
