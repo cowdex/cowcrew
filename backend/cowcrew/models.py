@@ -332,6 +332,7 @@ class ClaudeUsage(BaseModel):
     statusline_seen_at: float | None = None  # last time Claude Code's status line called in
     statusline_version: str | None = None
     statusline_has_limits: bool | None = None  # did that call include usage numbers?
+    statusline_raw: str | None = None  # last `rate_limits` as received, for troubleshooting
 
 
 class Overview(BaseModel):

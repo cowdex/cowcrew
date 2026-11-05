@@ -227,6 +227,7 @@ export interface ClaudeUsage {
   statusline_seen_at?: number | null;
   statusline_version?: string | null;
   statusline_has_limits?: boolean | null;
+  statusline_raw?: string | null;
 }
 
 export type Billing = 'api' | 'subscription';

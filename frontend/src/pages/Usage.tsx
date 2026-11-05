@@ -229,6 +229,14 @@ export default function UsagePage() {
         <button type="button" className={u.statusline_connected ? 'btn' : 'btn btn-primary'} onClick={() => void toggleStatusline()} disabled={busy !== ''}>
           {busy === 'connect' ? 'Working…' : u.statusline_connected ? 'Disconnect' : 'Connect Claude Code'}
         </button>
+        {u.statusline_raw && (
+          <details style={{ flexBasis: '100%', fontSize: 12, color: '#45424D' }}>
+            <summary style={{ cursor: 'pointer' }}>What Claude Code sent last time</summary>
+            <pre className="mono" style={{ margin: '8px 0 0', padding: 12, background: '#F7F7F8', borderRadius: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {u.statusline_raw}
+            </pre>
+          </details>
+        )}
       </section>
       <p style={{ margin: 0, fontSize: 12, color: '#74717A' }}>
         Refresh now sends one tiny Haiku request so Claude reports fresh numbers; it uses a negligible amount of your plan. Usage on claude.ai and the desktop app is included in these numbers, but CowCrew only sees updates when Claude Code, an agent or Refresh asks for them.

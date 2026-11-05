@@ -259,7 +259,7 @@ async def claude_usage_from_statusline(request: Request, state: State) -> dict[s
         body = await request.json()
     except ValueError as exc:
         raise HTTPException(400, "expected JSON") from exc
-    stored = limits.record_statusline(state.db, body if isinstance(body, dict) else {})
+    stored = limits.record_statusline(state.db, body if isinstance(body, (dict, list)) else {})
     if stored:
         state.bus.notify({"type": "claude_usage"})
     return {"stored": stored}

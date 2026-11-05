@@ -73,23 +73,75 @@ def record(db: Database, info: dict[str, Any], source: str = "agent") -> None:
            _epoch(info.get("resetsAt") or info.get("resets_at")), source)
 
 
-def record_statusline(db: Database, rate_limits: dict[str, Any]) -> int:
+def record_statusline(db: Database, rate_limits: Any) -> int:
     """`rate_limits` from Claude Code's status-line JSON. Returns how many windows were stored."""
-    rate_limits = dict(rate_limits or {})
-    meta = rate_limits.pop("_meta", None) or {}
+    meta: dict[str, Any] = {}
+    if isinstance(rate_limits, dict):
+        rate_limits = dict(rate_limits)
+        meta = rate_limits.pop("_meta", None) or {}
     db.set_setting("statusline_heartbeat", {
         "seen_at": _now(), "version": meta.get("version"),
         "has_rate_limits": bool(meta.get("has_rate_limits", bool(rate_limits)))})
+    db.set_setting("statusline_last_raw", rate_limits)
     n = 0
-    for kind, row in rate_limits.items():
-        if not isinstance(row, dict) or row.get("used_percentage") is None:
+    for kind, row in _windows(rate_limits):
+        used = _percent(row)
+        if used is None:
             continue
-        used = float(row["used_percentage"])
-        status = "rejected" if used >= 100 else "allowed_warning" if used >= 80 else "allowed"
-        _store(db, kind, used, status, _epoch(row.get("resets_at") or row.get("reset_at")),
-               "claude_code")
+        status = row.get("status") or (
+            "rejected" if used >= 100 else "allowed_warning" if used >= 80 else "allowed")
+        resets = next((row[k] for k in ("resets_at", "reset_at", "resetsAt", "resets", "reset")
+                       if row.get(k) not in (None, "")), None)
+        _store(db, _kind(kind), used, str(status), _epoch(resets), "claude_code")
         n += 1
     return n
+
+
+_KIND_ALIASES = {"5h": "five_hour", "session": "five_hour", "five_hours": "five_hour",
+                 "7d": "seven_day", "week": "seven_day", "weekly": "seven_day",
+                 "seven_days": "seven_day"}
+
+
+def _kind(name: str) -> str:
+    key = name.strip().lower().replace("-", "_").replace(" ", "_")
+    return _KIND_ALIASES.get(key, key)
+
+
+def _windows(rate_limits: Any) -> list[tuple[str, dict[str, Any]]]:
+    """Accept {"five_hour": {...}}, nested groups, or a list of {"type"/"name": ...} rows."""
+    out: list[tuple[str, dict[str, Any]]] = []
+    if isinstance(rate_limits, list):
+        for row in rate_limits:
+            if isinstance(row, dict):
+                name = row.get("type") or row.get("name") or row.get("window") or row.get("id")
+                if name:
+                    out.append((str(name), row))
+    elif isinstance(rate_limits, dict):
+        for name, row in rate_limits.items():
+            if isinstance(row, dict) and _percent(row) is None and any(
+                    isinstance(v, dict) for v in row.values()):
+                out += [(f"{name}_{k}" if name != "windows" else k, v)
+                        for k, v in row.items() if isinstance(v, dict)]
+            elif isinstance(row, dict):
+                out.append((name, row))
+    return out
+
+
+def _percent(row: dict[str, Any]) -> float | None:
+    """Used share as 0-100 from whichever field this Claude Code version sends."""
+    for key in ("used_percentage", "used_percent", "percent_used", "usage_percent", "percentage",
+                "percent"):
+        if row.get(key) is not None:
+            return float(row[key])
+    for key in ("utilization", "used_fraction", "usage"):
+        if isinstance(row.get(key), (int, float)):
+            v = float(row[key])
+            return v * 100 if v <= 1 else v
+    if isinstance(row.get("used"), (int, float)) and row.get("limit"):
+        return 100 * float(row["used"]) / float(row["limit"])
+    if isinstance(row.get("remaining_percentage"), (int, float)):
+        return 100 - float(row["remaining_percentage"])
+    return None
 
 
 def read(db: Database) -> list[PlanLimit]:
@@ -137,11 +189,13 @@ def daily(db: Database, days: int = 7) -> list[DailyUsage]:
 def usage(db: Database, statusline_on: bool) -> ClaudeUsage:
     lim = read(db)
     beat = db.get_setting("statusline_heartbeat", None) or {}
+    raw = db.get_setting("statusline_last_raw", None)
     return ClaudeUsage(limits=lim, updated_at=max((x.seen_at for x in lim), default=None),
                        daily=daily(db), statusline_connected=statusline_on,
                        statusline_seen_at=beat.get("seen_at"),
                        statusline_version=beat.get("version"),
-                       statusline_has_limits=beat.get("has_rate_limits"))
+                       statusline_has_limits=beat.get("has_rate_limits"),
+                       statusline_raw=json.dumps(raw)[:2000] if raw else None)
 
 
 def simulate(db: Database, session_tokens: int = 4_000_000, week_tokens: int = 40_000_000) -> None:
@@ -199,7 +253,7 @@ try:
     body = dict(limits)
     body["_meta"] = {{"version": data.get("version"), "has_rate_limits": bool(limits),
                      "keys": sorted(data)}}
-    note = body["_meta"]
+    note = dict(body["_meta"], rate_limits=limits)
     req = urllib.request.Request(URL, data=json.dumps(body).encode(),
                                  headers={{"content-type": "application/json"}})
     urllib.request.urlopen(req, timeout=0.5)

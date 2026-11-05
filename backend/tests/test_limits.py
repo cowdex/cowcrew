@@ -109,3 +109,15 @@ def test_statusline_script_posts_heartbeat(tmp_path, monkeypatch) -> None:
                    capture_output=True, text=True, timeout=10)
     log = json.loads((home / "claude-statusline-last.json").read_text())
     assert log["version"] == "2.9.1" and log["has_rate_limits"] is False and "error" in log
+
+
+def test_statusline_accepts_other_shapes(make_state) -> None:
+    db = make_state().db
+    assert limits.record_statusline(db, {
+        "five_hour": {"utilization": 0.25, "resets_at": 4_000_000_000},
+        "seven_day": {"used_percent": 40, "resetsAt": "2099-01-01T00:00:00Z"},
+        "seven_day_opus": {"remaining_percentage": 90}}) == 3
+    got = {r.kind: r.used_pct for r in limits.read(db)}
+    assert got == {"five_hour": 25.0, "seven_day": 40.0, "seven_day_opus": 10.0}
+    assert limits.record_statusline(db, [{"type": "7d", "percentage": 55}]) == 1
+    assert {r.kind: r.used_pct for r in limits.read(db)}["seven_day"] == 55.0
