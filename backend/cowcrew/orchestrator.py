@@ -288,9 +288,14 @@ class Orchestrator:
             title=f"Grilling the spec for {row['title']}", cwd=cwd, output=GrillOutput,
             prompt=briefs.grill(cwd, row["title"], row["spec"]), tools=READ, max_turns=40,
             context={"feature_title": row["title"]}))
-        questions = [q.strip() for q in out.questions if q.strip()][:5]
-        for question in questions:
-            self.db.insert("questions", feature_id=fid, question=question)
+        questions = [q for q in out.questions if q.question.strip()][:5]
+        for q in questions:
+            options = [o.strip() for o in q.options if o.strip()][:4]
+            recommended = q.recommended if 0 <= q.recommended < len(options) else None
+            if options and recommended is None:
+                recommended = 0
+            self.db.insert("questions", feature_id=fid, question=q.question.strip(),
+                           options=json.dumps(options), recommended=recommended)
         if questions:
             self.bus.emit(fid, PA, "gate", f"{len(questions)} questions need your answers",
                           {"gate": "answers"})

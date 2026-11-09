@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 AgentKey = Literal[
     "product_architect", "software_engineer", "tester", "pr_reviewer", "oncall_engineer",
@@ -131,6 +131,8 @@ class Question(BaseModel):
     id: int
     question: str
     answer: str | None
+    options: list[str] = Field(default_factory=list)
+    recommended: int | None = None
 
 
 class Task(BaseModel):
@@ -417,8 +419,20 @@ class SettingsUpdate(_Body):
 # --------------------------------------------------------------------------- agent outputs
 
 
+class GrillQuestion(BaseModel):
+    question: str
+    options: list[str] = Field(default_factory=list, max_length=4)
+    recommended: int = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_text(cls, value: Any) -> Any:
+        # A bare string is a question without options (older outputs and test scripts).
+        return {"question": value} if isinstance(value, str) else value
+
+
 class GrillOutput(BaseModel):
-    questions: list[str] = Field(max_length=5)
+    questions: list[GrillQuestion] = Field(max_length=5)
 
 
 class PlanTask(BaseModel):

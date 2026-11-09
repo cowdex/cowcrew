@@ -364,3 +364,18 @@ async def test_subscription_budget_counts_tokens(make_state: Callable[..., AppSt
     error = state.db.scalar("SELECT message FROM events WHERE feature_id = ? AND kind = 'error' "
                             "ORDER BY id DESC LIMIT 1", (fid2,))
     assert "tokens" in error
+
+
+async def test_questions_carry_options_and_a_recommendation(make_state: Callable[..., AppState],
+                                                            git_repo: Path) -> None:
+    grill = {"questions": [
+        {"question": "410 or 404?", "options": ["410 Gone", "404 Not Found"], "recommended": 0},
+        {"question": "Out of range?", "options": ["A", "B"], "recommended": 7},
+        "Plain text question?",
+    ]}
+    state = make_state(script(grill=[grill]))
+    fid = state.orchestrator.create_feature(add_project(state, git_repo), "Feature", "spec")
+    assert await settle(state, fid) == "awaiting_answers"
+    qs = detail_of(state.db, state.orchestrator._row(fid)).questions
+    assert [q.options for q in qs] == [["410 Gone", "404 Not Found"], ["A", "B"], []]
+    assert [q.recommended for q in qs] == [0, 0, None]

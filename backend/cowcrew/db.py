@@ -61,7 +61,9 @@ CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY,
     feature_id INTEGER NOT NULL REFERENCES features(id) ON DELETE CASCADE,
     question TEXT NOT NULL,
-    answer TEXT
+    answer TEXT,
+    options TEXT NOT NULL DEFAULT '[]',
+    recommended INTEGER
 );
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY,
@@ -187,6 +189,12 @@ class Database:
         cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(features)")}
         if "verified_sha" not in cols:
             self._conn.execute("ALTER TABLE features ADD COLUMN verified_sha TEXT")
+        qcols = {r["name"] for r in self._conn.execute("PRAGMA table_info(questions)")}
+        if "options" not in qcols:
+            self._conn.execute(
+                "ALTER TABLE questions ADD COLUMN options TEXT NOT NULL DEFAULT '[]'")
+        if "recommended" not in qcols:
+            self._conn.execute("ALTER TABLE questions ADD COLUMN recommended INTEGER")
 
     def close(self) -> None:
         with self._lock:

@@ -109,11 +109,18 @@ def output_for(phase: str, ctx: dict[str, Any], rng: random.Random) -> dict[str,
         if ctx.get("skip_questions"):
             return {"questions": []}
         return {"questions": [
-            f"Should '{title}' ship to every user at once, or behind a feature flag first?",
-            "On failure, should we fail closed with a clear error, or degrade gracefully "
-            "and log a warning?",
-            "Any hard constraints to respect — latency budget, supported API versions, or "
-            "data retention?",
+            {"question": f"Should '{title}' ship to every user at once, or behind a feature "
+                         "flag first?",
+             "options": ["Behind a feature flag first", "Every user at once"],
+             "recommended": 0},
+            {"question": "On failure, should we fail closed with a clear error, or degrade "
+                         "gracefully and log a warning?",
+             "options": ["Fail closed with a clear error", "Degrade gracefully and log a warning"],
+             "recommended": 0},
+            {"question": "Any hard constraints to respect — latency budget, supported API "
+                         "versions, or data retention?",
+             "options": ["None beyond what the repo already does", "Yes, I'll list them"],
+             "recommended": 0},
         ]}
     if phase == "groom":
         return {

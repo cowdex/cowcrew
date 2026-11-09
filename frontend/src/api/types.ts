@@ -61,6 +61,10 @@ export interface Question {
   id: number;
   question: string;
   answer: string | null;
+  /** Short answers the Product Architect suggests; empty when it asked an open question. */
+  options?: string[];
+  /** Index into `options` of the answer the Product Architect would pick. */
+  recommended?: number | null;
 }
 
 export interface Task {

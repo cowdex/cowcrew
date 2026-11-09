@@ -22,8 +22,11 @@ Find the gaps in the request that would change the plan, and ask about them.
   not a question.
 - Ask about choices, not opinions: scope, behaviour at the edges, what is explicitly out,
   hard constraints, anything that would need a decision record. Five questions at most.
-- Phrase each question so the human can answer it in a word, and include the answer you would
-  pick. Example: "Should expired links return 410 instead of 404? I'd say yes."
+- Phrase each question so the human can answer it by picking an option. Give 2 to 4 short
+  options, each a complete answer on its own, and mark the one you would pick as
+  `recommended` (its index). Put your reason in the question, briefly. Example: question
+  "Expired links: 410 or 404? 410 tells clients the link is gone for good.", options
+  ["410 Gone", "404 Not Found"], recommended 0.
 - If nothing is unclear, return no questions. Fewer, sharper questions are better.
 
 ## Job 2: plan

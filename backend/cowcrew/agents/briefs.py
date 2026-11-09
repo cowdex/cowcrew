@@ -50,9 +50,10 @@ def _wrap(cwd: Path, body: str) -> str:
 def grill(cwd: Path, title: str, spec: str) -> str:
     return _wrap(cwd, f"""
 JOB: questions. Compare the feature request below with the codebase and return the questions
-that must be answered before the work can be planned: at most 5, each about a concrete choice,
-with the answer you would pick included. Look up anything the code or docs already answer
-instead of asking. If nothing is unclear, return an empty list.
+that must be answered before the work can be planned: at most 5, each about a concrete choice.
+For each, give 2 to 4 short options the human can pick from (each a complete answer on its own)
+and set `recommended` to the index of the one you would pick. Look up anything the code or docs
+already answer instead of asking. If nothing is unclear, return an empty list.
 
 Feature: {title}
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, datetime
 
@@ -245,7 +246,8 @@ def detail_of(db: Database, row: sqlite3.Row) -> FeatureDetail:
         paused=row["status"] == "paused",
     )
     questions = [
-        Question(id=r["id"], question=r["question"], answer=r["answer"])
+        Question(id=r["id"], question=r["question"], answer=r["answer"],
+                 options=_options(r["options"]), recommended=r["recommended"])
         for r in db.all("SELECT * FROM questions WHERE feature_id = ? ORDER BY id", (fid,))
     ]
     acceptance = acceptance_of(db, fid)
@@ -256,3 +258,11 @@ def detail_of(db: Database, row: sqlite3.Row) -> FeatureDetail:
         findings=findings, ci_runs=ci_runs, spend_by_agent=_spend_by_agent(db, fid),
         checklist=_checklist(db, row, tasks, acceptance, findings, ci_runs, adr),
     )
+
+
+def _options(raw: str | None) -> list[str]:
+    try:
+        value = json.loads(raw or "[]")
+    except ValueError:
+        return []
+    return [str(o) for o in value] if isinstance(value, list) else []

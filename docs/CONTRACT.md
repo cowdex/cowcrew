@@ -85,7 +85,9 @@ interface FeatureSummary {
   created_at: string; updated_at: string;
 }
 
-interface Question { id: number; question: string; answer: string|null; }
+interface Question { id: number; question: string; answer: string|null;
+  options: string[];            // 2–4 suggested answers from the PA; [] for an open question
+  recommended: number|null; }   // index into options of the PA's pick
 
 interface Task {
   id: number; seq: number; title: string; description: string; acceptance_criteria: string[];

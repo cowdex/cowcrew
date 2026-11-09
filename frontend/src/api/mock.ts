@@ -288,8 +288,8 @@ features.push({
     spec: 'Retry failed outgoing webhooks with exponential backoff. Merchants can see each attempt and replay a delivery by hand.',
   }),
   questions: [
-    { id: 61, question: 'How many attempts before a delivery is marked failed?', answer: null },
-    { id: 62, question: 'Should a replay by hand reset the retry schedule, or count as one more attempt?', answer: null },
+    { id: 61, question: 'How many attempts before a delivery is marked failed?', answer: null, options: ['5 attempts over 24 hours', '3 attempts over 1 hour', '10 attempts over 3 days'], recommended: 0 },
+    { id: 62, question: 'Should a replay by hand reset the retry schedule, or count as one more attempt?', answer: null, options: ['Reset the retry schedule', 'Count as one more attempt'], recommended: 0 },
     { id: 63, question: 'Do merchants need an email when a webhook endpoint keeps failing?', answer: null },
   ],
   tasks: [],
@@ -648,7 +648,7 @@ export async function mockRequest(method: string, rawPath: string, body: unknown
       st.feature.stages = ['wait', 'pend', 'pend', 'pend', 'pend'];
       st.feature.stage_text = 'Plan · 2 questions for you';
       st.questions = [
-        { id: nextId(), question: 'Who is this for: every user, or only admins?', answer: null },
+        { id: nextId(), question: 'Who is this for: every user, or only admins?', answer: null, options: ['Every user', 'Only admins'], recommended: 0 },
         { id: nextId(), question: 'What should happen when this fails halfway?', answer: null },
       ];
       push({ feature_id: id, task_id: null, agent: 'product_architect', kind: 'gate', message: `Questions ready: ${title}`, data: { detail: '2 questions' } });

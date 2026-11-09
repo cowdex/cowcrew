@@ -161,7 +161,7 @@ function QAList({ questions }: { questions: Question[] }) {
 }
 
 function QuestionsForm({ d, setDetail }: { d: FeatureDetail; setDetail: (d: FeatureDetail) => void }) {
-  const [answers, setAnswers] = useState<Record<number, string>>(() => Object.fromEntries(d.questions.map((q) => [q.id, q.answer ?? ''])));
+  const [answers, setAnswers] = useState<Record<number, string>>(() => Object.fromEntries(d.questions.map((q) => [q.id, q.answer ?? recommendedOf(q)])));
   const { busy, run } = useAction(setDetail);
   const open = d.questions.filter((q) => !(answers[q.id] ?? '').trim()).length;
   const submit = async (e: FormEvent) => {
@@ -187,17 +187,7 @@ function QuestionsForm({ d, setDetail }: { d: FeatureDetail; setDetail: (d: Feat
       {d.questions.map((q, i) => (
         <div key={q.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: 16, padding: '16px 0', borderBottom: '1px solid #EFEEF1' }}>
           <NumBox n={pad2(i + 1)} color={numColor(i)} />
-          <label className="field" style={{ gap: 10 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#171321', lineHeight: 1.4 }}>{q.question}</span>
-            <textarea
-              className="textarea"
-              rows={2}
-              value={answers[q.id] ?? ''}
-              placeholder="Your answer"
-              onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-              required
-            />
-          </label>
+          <AnswerField q={q} value={answers[q.id] ?? ''} onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))} />
         </div>
       ))}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 16 }}>
@@ -512,5 +502,66 @@ function RestartButton({ id }: { id: number }) {
     >
       {busy ? 'Restarting…' : 'Restart run'}
     </button>
+  );
+}
+
+const OTHER = '__other__';
+
+function recommendedOf(q: Question): string {
+  const opts = q.options ?? [];
+  return q.recommended != null && opts[q.recommended] !== undefined ? opts[q.recommended] : '';
+}
+
+/** One answer: a dropdown of the Product Architect's options (its pick preselected), or free text. */
+function AnswerField({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  const opts = q.options ?? [];
+  const [other, setOther] = useState(() => opts.length > 0 && value !== '' && !opts.includes(value));
+  const id = `q-${q.id}`;
+  const title = (
+    <label htmlFor={id} style={{ fontSize: 15, fontWeight: 600, color: '#171321', lineHeight: 1.4 }}>
+      {q.question}
+    </label>
+  );
+  if (opts.length === 0) {
+    return (
+      <div className="field" style={{ gap: 10 }}>
+        {title}
+        <textarea id={id} className="textarea" rows={2} value={value} placeholder="Your answer" onChange={(e) => onChange(e.target.value)} required />
+      </div>
+    );
+  }
+  return (
+    <div className="field" style={{ gap: 10 }}>
+      {title}
+      <select
+        id={id}
+        className="input"
+        value={other ? OTHER : value}
+        onChange={(e) => {
+          if (e.target.value === OTHER) {
+            setOther(true);
+            onChange('');
+          } else {
+            setOther(false);
+            onChange(e.target.value);
+          }
+        }}
+      >
+        {opts.map((o, i) => (
+          <option key={o} value={o}>
+            {o}
+            {i === q.recommended ? '  (recommended)' : ''}
+          </option>
+        ))}
+        <option value={OTHER}>Something else…</option>
+      </select>
+      {other ? (
+        <textarea className="textarea" rows={2} value={value} placeholder="Your answer" aria-label={`Your answer to: ${q.question}`} onChange={(e) => onChange(e.target.value)} autoFocus required />
+      ) : (
+        value === recommendedOf(q) && (
+          <span style={{ fontSize: 12, color: '#10B1B1', fontWeight: 600 }}>✓ The Product Architect's recommendation</span>
+        )
+      )}
+    </div>
   );
 }
