@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import sqlite3
 import time
@@ -720,13 +721,44 @@ class Orchestrator:
         self._require(fid, *sorted({"grilling", "awaiting_answers", "grooming",
                                     "awaiting_plan_approval", "building", "accepting",
                                     "reviewing", "ci", "awaiting_merge", "paused", "failed"}))
+        row = self._row(fid)
         task = self._tasks.pop(fid, None)
         if task is not None:
             task.cancel()
         self.db.execute("UPDATE tasks SET status = 'pending' WHERE feature_id = ? "
                         "AND status IN ('running', 'testing')", (fid,))
-        self._update(fid, status="stopped", finished_at=now_iso())
-        self.bus.emit(fid, "human", "status", "Stopped", {"to": "stopped"})
+        step = self._restart_step(fid, row)
+        self._update(fid, status="stopped", finished_at=now_iso(), resume_status=step)
+        self.bus.emit(fid, "human", "status", "Stopped", {"from": row["status"], "to": "stopped"})
+
+    def _restart_step(self, fid: int, row: Any) -> str:
+        """The pipeline step a stopped or failed run should restart from."""
+        if row["status"] not in TERMINAL_STATES | {"paused"}:
+            return str(row["status"])
+        if row["resume_status"]:
+            return str(row["resume_status"])
+        skip = TERMINAL_STATES | {"paused"}
+        for ev in self.db.all("SELECT data FROM events WHERE feature_id = ? "
+                                "ORDER BY id DESC", (fid,)):
+            try:
+                to = json.loads(ev["data"] or "{}").get("to")
+            except (ValueError, AttributeError):
+                continue
+            if isinstance(to, str) and to not in skip:
+                return to
+        return "grilling"
+
+    def restart(self, fid: int) -> str:
+        """Pick a stopped or failed run back up at the step it was on."""
+        row = self._require(fid, "stopped", "failed")
+        to = self._restart_step(fid, row)
+        self.db.execute("UPDATE tasks SET status = 'pending', attempts = 0 "
+                        "WHERE feature_id = ? AND status = 'failed'", (fid,))
+        self._update(fid, status=to, resume_status=None, finished_at=None, managed=1)
+        self.bus.emit(fid, "human", "status", f"Restarted ({to})",
+                      {"from": row["status"], "to": to})
+        self.advance(fid)
+        return to
 
     def send_back(self, fid: int, note: str) -> None:
         row = self._require(fid, "awaiting_merge")

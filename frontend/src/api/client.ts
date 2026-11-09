@@ -109,6 +109,7 @@ export const api = {
   pause: (id: number) => request<FeatureDetail>('POST', `/features/${id}/pause`),
   resume: (id: number) => request<FeatureDetail>('POST', `/features/${id}/resume`),
   stop: (id: number) => request<FeatureDetail>('POST', `/features/${id}/stop`),
+  restart: (id: number) => request<FeatureDetail>('POST', `/features/${id}/restart`),
   merge: (id: number, b: { commit_message: string; delete_branch: boolean; follow_up_nits: boolean; admin?: boolean }) =>
     request<FeatureDetail>('POST', `/features/${id}/merge`, b),
   sendBack: (id: number, note: string) => request<FeatureDetail>('POST', `/features/${id}/send-back`, { note }),

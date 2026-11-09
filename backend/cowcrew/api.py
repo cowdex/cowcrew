@@ -210,6 +210,13 @@ async def resume(feature_id: int, state: State) -> FeatureDetail:
     return _detail(state, feature_id)
 
 
+@router.post("/features/{feature_id}/restart")
+async def restart(feature_id: int, state: State) -> FeatureDetail:
+    _feature(state, feature_id)
+    state.orchestrator.restart(feature_id)
+    return _detail(state, feature_id)
+
+
 @router.post("/features/{feature_id}/stop")
 async def stop(feature_id: int, state: State) -> FeatureDetail:
     _feature(state, feature_id)

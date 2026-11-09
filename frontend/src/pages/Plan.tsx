@@ -442,10 +442,13 @@ function DecisionPanel({ d, setDetail }: { d: FeatureDetail; setDetail: (d: Feat
     return (
       <section className="card" style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{f.status === 'failed' ? 'This run failed' : 'This run was stopped'}</h2>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#45424D' }}>See the live log for the last thing that happened.</p>
-        <Link to={`/features/${f.id}/live`} className="btn">
-          Open the log
-        </Link>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#45424D' }}>Committed work is still on the branch. Restart picks the run back up at the step it was on.</p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <RestartButton id={f.id} />
+          <Link to={`/features/${f.id}/live`} className="btn">
+            Open the log
+          </Link>
+        </div>
       </section>
     );
   }
@@ -485,5 +488,29 @@ function Guardrails() {
         </div>
       ))}
     </section>
+  );
+}
+
+function RestartButton({ id }: { id: number }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      className="btn btn-primary"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await api.restart(id);
+          toast.info('Run restarted from where it stopped.');
+          navigate(`/features/${id}/live`);
+        } catch {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? 'Restarting…' : 'Restart run'}
+    </button>
   );
 }

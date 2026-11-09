@@ -176,7 +176,7 @@ interface Settings {
 | POST | `/features/{id}/answers` | `{answers: {id: number, answer: string}[]}` | `FeatureDetail` |
 | POST | `/features/{id}/approve` | | `FeatureDetail` |
 | POST | `/features/{id}/request-changes` | `{note}` | `FeatureDetail` |
-| POST | `/features/{id}/pause` · `/resume` · `/stop` | | `FeatureDetail` |
+| POST | `/features/{id}/pause` · `/resume` · `/stop` · `/restart` (stopped or failed → the step it was on) | | `FeatureDetail` |
 | POST | `/features/{id}/merge` | `{commit_message, delete_branch: bool, follow_up_nits: bool}` | `FeatureDetail` |
 | POST | `/features/{id}/send-back` | `{note}` | `FeatureDetail` |
 | POST | `/features/{id}/message` | `{agent, text}` (note appended to that agent's next prompt) | `{ok}` |

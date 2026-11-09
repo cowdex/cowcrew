@@ -740,7 +740,16 @@ export async function mockRequest(method: string, rawPath: string, body: unknown
       touch(st);
       return detail(st);
     }
+    if (action === 'restart') {
+      if (!['stopped', 'failed'].includes(f.status)) throw new ApiError(409, 'This run is not stopped');
+      f.status = (f as FeatureFull & { _resume?: FeatureStatus })._resume ?? 'building';
+      f.stage_text = 'Restarted';
+      push({ feature_id: f.id, task_id: null, agent: 'human', kind: 'status', message: `Restarted (${f.status})`, data: {} });
+      touch(st);
+      return detail(st);
+    }
     if (action === 'stop') {
+      if (f.status !== 'paused') (f as FeatureFull & { _resume?: FeatureStatus })._resume = f.status;
       f.status = 'stopped';
       f.paused = false;
       f.stage_text = 'Stopped by you';

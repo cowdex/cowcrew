@@ -296,6 +296,39 @@ async def test_stop_cancels_running_feature(make_state: Callable[..., AppState],
         orch.stop(fid)
 
 
+async def test_restart_picks_up_where_it_stopped(make_state: Callable[..., AppState],
+                                                 git_repo: Path) -> None:
+    state = make_state(sim_speed=1.0)
+    orch = state.orchestrator
+    fid = orch.create_feature(add_project(state, git_repo), "Feature", "spec")
+    await asyncio.sleep(0.05)
+    step = orch._row(fid)["status"]
+    orch.stop(fid)
+    await asyncio.sleep(0)
+    assert orch._row(fid)["resume_status"] == step
+    assert orch.restart(fid) == step
+    row = orch._row(fid)
+    assert row["status"] == step and row["finished_at"] is None
+    assert orch.is_running(fid)
+    orch.stop(fid)
+
+
+async def test_restart_old_stopped_run_uses_event_log(make_state: Callable[..., AppState],
+                                                      git_repo: Path) -> None:
+    state = make_state(sim_speed=1.0)
+    orch = state.orchestrator
+    fid = orch.create_feature(add_project(state, git_repo), "Feature", "spec")
+    orch.stop(fid)
+    # Runs stopped before this change have no resume_status saved.
+    state.db.execute("UPDATE features SET resume_status = NULL WHERE id = ?", (fid,))
+    state.bus.emit(fid, "system", "status", "Reviewing", {"from": "accepting", "to": "reviewing"})
+    state.bus.emit(fid, "human", "status", "Stopped", {"to": "stopped"})
+    assert orch.restart(fid) == "reviewing"
+    orch.stop(fid)
+    with pytest.raises(TransitionError):
+        orch.restart(orch.create_feature(add_project(state, git_repo), "Other", "spec"))
+
+
 async def test_send_back_queues_rollup_and_rebuilds(real_mode: Callable[..., AppState],
                                                     git_repo: Path) -> None:
     state = real_mode(script())

@@ -212,14 +212,28 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
           </MetaLine>
         }
         actions={
-          <>
-            <button type="button" className="btn" onClick={togglePause} disabled={terminal || busy !== null || f.status === 'awaiting_merge'} aria-pressed={paused}>
-              {busy === 'pause' ? '…' : paused ? 'Resume' : 'Pause'}
+          ['stopped', 'failed'].includes(f.status) ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy !== null}
+              onClick={async () => {
+                const ok = await run('restart', () => api.restart(f.id));
+                if (ok) toast.info('Run restarted from where it stopped.');
+              }}
+            >
+              {busy === 'restart' ? 'Restarting…' : 'Restart run'}
             </button>
-            <button type="button" className="btn btn-danger" onClick={() => setConfirmStop(true)} disabled={terminal || busy !== null}>
-              Stop run
-            </button>
-          </>
+          ) : (
+            <>
+              <button type="button" className="btn" onClick={togglePause} disabled={terminal || busy !== null || f.status === 'awaiting_merge'} aria-pressed={paused}>
+                {busy === 'pause' ? '…' : paused ? 'Resume' : 'Pause'}
+              </button>
+              <button type="button" className="btn btn-danger" onClick={() => setConfirmStop(true)} disabled={terminal || busy !== null}>
+                Stop run
+              </button>
+            </>
+          )
         }
       />
 
@@ -387,7 +401,7 @@ function LiveView({ d, events, eventsLoading, setDetail }: { d: FeatureDetail; e
 
       {confirmStop && (
         <Modal title="Stop this run?" onClose={() => setConfirmStop(false)}>
-          <p>The agents stop right away. Committed work stays on the branch {f.branch ? <span className="mono">{f.branch}</span> : null}; you can't resume a stopped run.</p>
+          <p>The agents stop right away. Committed work stays on the branch {f.branch ? <span className="mono">{f.branch}</span> : null}; you can restart it later from the same step.</p>
           <div className="actions">
             <button type="button" className="btn" onClick={() => setConfirmStop(false)}>
               Keep running
